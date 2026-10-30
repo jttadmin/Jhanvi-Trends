@@ -1,0 +1,8 @@
+<resources>
+    <!-- Compose draws the UI; this theme only styles the window while the app starts. -->
+    <style name="Theme.JhanviTrends" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/brand_dark</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowBackground">#E9EDF0</item>
+    </style>
+</resources>
