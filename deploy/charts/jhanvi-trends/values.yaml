@@ -38,7 +38,7 @@ services:
     metricsPath: /metrics
     probes: {liveness: /healthz, readiness: /readyz}
     resources:
-      requests: {cpu: 50m, memory: 96Mi}
+      requests: {cpu: 100m, memory: 96Mi}
       limits: {memory: 256Mi}
     hpa: {enabled: true, minReplicas: 2, maxReplicas: 3, cpu: 70, memory: 70}
     secretEnv: [JWT_SECRET]
