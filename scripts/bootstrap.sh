@@ -5,7 +5,8 @@
 #   ./scripts/bootstrap.sh
 #
 # Optional env:
-#   GHCR_USER / GHCR_TOKEN   create an image pull secret if your GHCR packages are private
+#   DOCKERHUB_USER / DOCKERHUB_TOKEN   create an image pull secret (private repos, or to avoid
+#                                      the Docker Hub anonymous pull rate limit)
 #   GIT_USER  / GIT_TOKEN    register the repo in Argo CD if the GitHub repo is private
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -16,8 +17,8 @@ log() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
 command -v kubectl >/dev/null || { echo "kubectl is required"; exit 1; }
 command -v helm >/dev/null || { echo "helm is required (https://helm.sh/docs/intro/install/)"; exit 1; }
-if grep -rq -e CHANGE_ME_OWNER -e CHANGE_ME_IP deploy; then
-  echo "Run ./scripts/configure.sh <github-owner> <node-ip> and push first."; exit 1
+if grep -rq -e CHANGE_ME_OWNER -e CHANGE_ME_DOCKERHUB -e CHANGE_ME_IP deploy; then
+  echo "Run ./scripts/configure.sh <github-owner> <dockerhub-namespace> <node-ip> and push first."; exit 1
 fi
 
 log "Cluster"
@@ -54,11 +55,11 @@ if ! kubectl -n monitoring get secret grafana-admin >/dev/null 2>&1; then
   echo "created monitoring/grafana-admin"
 fi
 
-if [[ -n "${GHCR_USER:-}" && -n "${GHCR_TOKEN:-}" ]]; then
-  kubectl -n jhanvi-trends create secret docker-registry ghcr-pull \
-    --docker-server=ghcr.io --docker-username="$GHCR_USER" --docker-password="$GHCR_TOKEN" \
+if [[ -n "${DOCKERHUB_USER:-}" && -n "${DOCKERHUB_TOKEN:-}" ]]; then
+  kubectl -n jhanvi-trends create secret docker-registry dockerhub-pull \
+    --docker-server=https://index.docker.io/v1/ --docker-username="$DOCKERHUB_USER" --docker-password="$DOCKERHUB_TOKEN" \
     --dry-run=client -o yaml | kubectl apply -f -
-  echo "created jhanvi-trends/ghcr-pull - set global.imagePullSecrets: [{name: ghcr-pull}] in the chart values"
+  echo "created jhanvi-trends/dockerhub-pull - set global.imagePullSecrets: [{name: dockerhub-pull}] in the chart values"
 fi
 
 log "Argo CD"

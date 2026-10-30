@@ -66,10 +66,11 @@ else
 fi
 
 section "Outbound internet from pods (image pulls, nip.io not needed inside)"
-if kubectl run sv-egress --rm -i --restart=Never --image=busybox:1.36 -- wget -q -T 8 -O /dev/null https://ghcr.io >/dev/null 2>&1; then
-  pass "pods can reach ghcr.io"
+# Docker Hub answers 401 to anonymous /v2/ requests; any HTTP answer proves the route works.
+if kubectl run sv-egress --rm -i --restart=Never --image=busybox:1.36 -- sh -c 'wget -T 8 -O /dev/null https://registry-1.docker.io/v2/ 2>&1; true' 2>/dev/null | grep -qE '401|200'; then
+  pass "pods can reach Docker Hub"
 else
-  warn "pods could not reach ghcr.io; nodes need an external IP or Cloud NAT to pull images"
+  warn "pods could not reach Docker Hub; nodes need an external IP or Cloud NAT to pull images"
 fi
 
 section "Storage"
@@ -84,7 +85,7 @@ used=$(kubectl get svc -A -o jsonpath='{range .items[*]}{range .spec.ports[*]}{.
 [ -z "$used" ] && pass "NodePorts 30080/30443 are free" || warn "NodePort(s) already used: $used (change them in deploy/platform/traefik.yaml)"
 
 section "Repo configuration"
-if grep -rq CHANGE_ME deploy 2>/dev/null; then warn "placeholders remain - run ./scripts/configure.sh <github-owner> <node-external-ip>"; else pass "placeholders filled in"; fi
+if grep -rq CHANGE_ME deploy 2>/dev/null; then warn "placeholders remain - run ./scripts/configure.sh <github-owner> <dockerhub-namespace> <node-external-ip>"; else pass "placeholders filled in"; fi
 grep -m1 'host: shop\.' deploy/charts/jhanvi-trends/values.yaml 2>/dev/null | sed 's/^ */  shop host: /'
 
 echo

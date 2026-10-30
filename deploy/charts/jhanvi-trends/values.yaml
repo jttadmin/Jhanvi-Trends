@@ -2,11 +2,11 @@
 # CI updates services.<name>.image.tag after each image build (GitOps).
 
 global:
-  # Images are pushed by GitHub Actions to ghcr.io/<owner>/jhanvi-trends-<service>.
-  imageRegistry: ghcr.io/jttadmin
+  # Images are pushed by GitHub Actions to Docker Hub: docker.io/<namespace>/jhanvi-trends-<service>.
+  imageRegistry: docker.io/CHANGE_ME_DOCKERHUB
   imagePrefix: jhanvi-trends-
   imagePullPolicy: IfNotPresent
-  # e.g. [{name: ghcr-pull}] if your GHCR packages are private (see README)
+  # e.g. [{name: dockerhub-pull}] for private Docker Hub repos or to avoid anonymous pull limits (see README)
   imagePullSecrets: []
   environment: dev
   # Secret holding POSTGRES_PASSWORD, MONGODB_PASSWORD, JWT_SECRET (created by scripts/bootstrap.sh).

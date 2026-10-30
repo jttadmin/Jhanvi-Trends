@@ -50,7 +50,7 @@ services/<name>/            source + Dockerfile for each service
 deploy/charts/jhanvi-trends/    Helm chart: services, PostgreSQL, MongoDB, Redis, Kafka, ingress, rules, dashboard
 deploy/platform/            values for kube-prometheus-stack, Loki, Tempo, OTel Collector, Traefik, metrics-server
 deploy/argocd/              AppProject, app-of-apps root, one Application per component
-.github/workflows/ci.yaml   build → Trivy scan → push to GHCR → bump image tags in Git
+.github/workflows/ci.yaml   build → Trivy scan → push to Docker Hub → bump image tags in Git
 scripts/                    configure.sh, bootstrap.sh, gen-dashboard.py
 ```
 
@@ -59,30 +59,35 @@ scripts/                    configure.sh, bootstrap.sh, gen-dashboard.py
 - Your kubeadm cluster on GCE with a working CNI (Calico/Flannel both support the `hostPort` used by the OTel Collector).
 - Worker capacity: roughly **6 vCPU / 12 GB RAM** free across workers for app + platform (e.g. 2 × e2-standard-4).
 - `kubectl` and `helm` on the machine you bootstrap from.
-- A GitHub repo for this code (Argo CD and GHCR are wired to GitHub).
+- A GitHub repo for this code (Argo CD reads it) and a Docker Hub account for the images.
 
 ## Deploy
 
-**1. Push this repo to GitHub and fill in the placeholders**
+**1. Fill in the placeholders and push**
 
 ```bash
-git init && git add -A && git commit -m "Jhanvi Trends"
-git remote add origin https://github.com/<you>/jhanvi-trends.git
-./scripts/configure.sh <you> <EXTERNAL_IP_OF_A_WORKER_NODE>
-git add -A && git commit -m "Configure for my cluster" && git push -u origin main
+./scripts/configure.sh <github-owner> <dockerhub-namespace> <EXTERNAL_IP_OF_A_WORKER_NODE>
+git add -A && git commit -m "Configure for my cluster" && git push
 ```
 
-**2. Build the images** — GitHub → Actions → *ci* → *Run workflow* (builds all 9 images to
-`ghcr.io/<you>/jhanvi-trends-*`). The last job commits the new image tags into
-`deploy/charts/jhanvi-trends/values.yaml`. Then either make the packages **public**
-(GitHub → Packages → each package → Settings → Change visibility) or use a pull secret (step 3).
+**2. Build the images to Docker Hub**
+
+1. Docker Hub → **Account settings → Personal access tokens → Generate new token** with
+   *Read, Write, Delete* access.
+2. GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**:
+   `DOCKERHUB_USERNAME` (your Docker Hub username) and `DOCKERHUB_TOKEN` (the token).
+   To push to a Docker Hub organization instead, also add a repository **variable** `DOCKERHUB_NAMESPACE`.
+3. GitHub repo → **Settings → Actions → General → Workflow permissions → Read and write** (CI commits image tags).
+4. **Actions → ci → Run workflow**. It builds 9 images to `docker.io/<namespace>/jhanvi-trends-*` and commits the
+   new tags into `deploy/charts/jhanvi-trends/values.yaml`. New Docker Hub repositories are public by default;
+   if yours are private, use the pull secret in step 3.
 
 **3. Bootstrap the cluster** (installs local-path StorageClass, secrets, Argo CD, app of apps)
 
 ```bash
 ./scripts/bootstrap.sh
-# private images:  GHCR_USER=<you> GHCR_TOKEN=<PAT with read:packages> ./scripts/bootstrap.sh
-#   then set global.imagePullSecrets: [{name: ghcr-pull}] in the chart values and push
+# private images or pull limits:  DOCKERHUB_USER=<you> DOCKERHUB_TOKEN=<read-only access token> ./scripts/bootstrap.sh
+#   then set global.imagePullSecrets: [{name: dockerhub-pull}] in the chart values and push
 # private repo:    GIT_USER=<you> GIT_TOKEN=<PAT> ./scripts/bootstrap.sh
 kubectl -n argocd get applications -w
 ```
