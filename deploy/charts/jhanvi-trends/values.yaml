@@ -104,9 +104,11 @@ services:
     probes:
       liveness: /actuator/health/liveness
       readiness: /actuator/health/readiness
-      startupFailureThreshold: 30 # JVM + agent startup
+      # Up to 5 minutes to start: the JVM plus the OpenTelemetry agent needs ~2.5 min on a busy e2-medium.
+      startupFailureThreshold: 60
     resources:
-      requests: {cpu: 100m, memory: 384Mi}
+      # A larger CPU share makes the JVM start faster when the node is busy.
+      requests: {cpu: 300m, memory: 384Mi}
       limits: {memory: 768Mi}
     hpa: {enabled: false}
     database: orders
