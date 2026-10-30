@@ -21,4 +21,4 @@ server:
     enabled: true
     ingressClassName: traefik
     # Set to argocd.<NODE_EXTERNAL_IP>.nip.io
-    hostname: argocd.34.93.173.69.nip.io
+    hostname: argocd.bhumaji.com

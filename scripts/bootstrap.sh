@@ -80,6 +80,11 @@ if [[ -n "${GIT_USER:-}" && -n "${GIT_TOKEN:-}" ]]; then
     --dry-run=client -o yaml | kubectl label --local -f - argocd.argoproj.io/secret-type=repository -o yaml | kubectl apply -f -
 fi
 
+log "Argo CD ingress"
+kubectl -n argocd patch configmap argocd-cmd-params-cm --type merge -p '{"data":{"server.insecure":"true"}}'
+kubectl -n argocd rollout restart deployment argocd-server
+kubectl apply -f deploy/argocd/argocd-ingress.yaml
+
 log "App of apps"
 kubectl apply -f deploy/argocd/project.yaml -f deploy/argocd/root.yaml
 
@@ -90,9 +95,9 @@ cat <<EOF
 Bootstrap complete. Argo CD now installs the platform and the app (10-15 min on first run):
   kubectl -n argocd get applications -w
 
-  Shop:    http://shop.${ip}.nip.io
-  Grafana: http://grafana.${ip}.nip.io   user: admin  password: kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d
-  Argo CD: http://argocd.${ip}.nip.io    user: admin  password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+  Shop:    https://shop.${ip}
+  Grafana: https://grafana.${ip}   user: admin  password: kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d
+  Argo CD: https://argocd.${ip}    user: admin  password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
 
 If those don't load, open the NodePorts in GCE:
   gcloud compute firewall-rules create jhanvi-trends-ingress --allow tcp:80,tcp:443 --target-tags <your-node-network-tag> --source-ranges <your-ip>/32

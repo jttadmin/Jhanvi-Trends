@@ -71,8 +71,12 @@ grafana:
   ingress:
     enabled: true
     ingressClassName: traefik
-    # Set to grafana.<NODE_EXTERNAL_IP>.nip.io
-    hosts: [grafana.34.93.173.69.nip.io]
+    hosts: [grafana.bhumaji.com]
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-production
+    tls:
+      - hosts: [grafana.bhumaji.com]
+        secretName: grafana-tls
   sidecar:
     dashboards:
       enabled: true
@@ -83,6 +87,8 @@ grafana:
       provider:
         foldersFromFilesStructure: true
   grafana.ini:
+    server:
+      root_url: https://grafana.bhumaji.com
     feature_toggles:
       enable: traceToMetrics
   additionalDataSources:

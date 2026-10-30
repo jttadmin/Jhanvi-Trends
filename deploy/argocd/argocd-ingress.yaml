@@ -1,0 +1,25 @@
+# Exposes the existing Argo CD at https://argocd.bhumaji.com through Traefik.
+# bootstrap.sh sets server.insecure=true so argocd-server speaks plain HTTP behind Traefik's TLS.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server
+  namespace: argocd
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [argocd.bhumaji.com]
+      secretName: argocd-tls
+  rules:
+    - host: argocd.bhumaji.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  name: http

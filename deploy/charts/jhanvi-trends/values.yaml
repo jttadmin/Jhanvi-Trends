@@ -16,9 +16,12 @@ ingress:
   enabled: true
   className: traefik
   # Set to shop.<NODE_EXTERNAL_IP>.nip.io (or your own DNS name).
-  host: shop.34.93.173.69.nip.io
-  annotations: {}
-  tls: []
+  host: shop.bhumaji.com
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+  tls:
+    - hosts: [shop.bhumaji.com]
+      secretName: shop-tls
 monitoring:
   serviceMonitors: true
   prometheusRules: true
