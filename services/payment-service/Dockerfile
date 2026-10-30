@@ -9,6 +9,6 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-USER node
+USER 1000
 EXPOSE 8080
 CMD ["node", "src/server.js"]

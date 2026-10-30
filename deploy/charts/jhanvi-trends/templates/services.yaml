@@ -29,6 +29,9 @@ spec:
       enableServiceLinks: false
       securityContext:
         runAsNonRoot: true
+        {{- with $svc.runAsUser }}
+        runAsUser: {{ . }}
+        {{- end }}
         seccompProfile: { type: RuntimeDefault }
       topologySpreadConstraints:
         - maxSkew: 1

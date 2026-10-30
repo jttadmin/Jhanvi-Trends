@@ -30,6 +30,7 @@ monitoring:
 services:
   frontend:
     image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
+    runAsUser: 1000   # numeric UID of the node user
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -47,6 +48,7 @@ services:
       ORDER_SERVICE_URL: http://order-service:8080
   user-service:
     image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
+    runAsUser: 1000   # numeric UID of the node user
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -111,6 +113,7 @@ services:
       PAYMENT_SERVICE_URL: http://payment-service:8080
   payment-service:
     image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
+    runAsUser: 1000   # numeric UID of the node user
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -170,7 +173,7 @@ redis:
     image: oliver006/redis_exporter:v1.80.0
 mongodb:
   enabled: true
-  image: mongo:8.0
+  image: mongo:7.0   # 8.x cannot start on kernel 6.19+ (MongoDB SERVER-121912)
   user: jhanvitrends # database login (no hyphens)
   storage: 5Gi
   storageClassName: ""

@@ -50,7 +50,7 @@ management:
     distribution:
       # Same bucket boundaries as the Node/Python/Go services (http_server_requests_seconds).
       slo:
-        http.server.requests: 5ms,10ms,25ms,50ms,100ms,250ms,500ms,1s,2.5s,5s
+        http.server.requests: 5ms,10ms,25ms,50ms,100ms,250ms,500ms,1s,2500ms,5s
 
 # JSON logs on stdout. The OpenTelemetry Java agent puts trace_id/span_id into the MDC,
 # and the logstash format writes MDC entries as top-level fields.
