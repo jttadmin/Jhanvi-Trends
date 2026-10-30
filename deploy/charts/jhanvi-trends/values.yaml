@@ -26,7 +26,7 @@ monitoring:
 # Every entry becomes a Deployment + Service (+ ServiceMonitor, HPA, PDB).
 services:
   frontend:
-    image: {tag: latest}
+    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -43,7 +43,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8080
       ORDER_SERVICE_URL: http://order-service:8080
   user-service:
-    image: {tag: latest}
+    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -55,7 +55,7 @@ services:
     database: users
     secretEnv: [JWT_SECRET]
   catalog-service:
-    image: {tag: latest}
+    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -66,7 +66,7 @@ services:
     hpa: {enabled: true, minReplicas: 2, maxReplicas: 5, cpu: 70}
     mongodb: catalog # MongoDB database name
   cart-service:
-    image: {tag: 985feb2d3a033bf05a9a962b93eb3c9f0568edf3}
+    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -78,7 +78,7 @@ services:
     env:
       REDIS_ADDR: redis:6379
   inventory-service:
-    image: {tag: 985feb2d3a033bf05a9a962b93eb3c9f0568edf3}
+    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -89,7 +89,7 @@ services:
     hpa: {enabled: false}
     database: inventory
   order-service:
-    image: {tag: latest}
+    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
     replicas: 2
     port: 8080
     metricsPath: /actuator/prometheus
@@ -107,7 +107,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8080
       PAYMENT_SERVICE_URL: http://payment-service:8080
   payment-service:
-    image: {tag: latest}
+    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -120,7 +120,7 @@ services:
       PAYMENT_FAILURE_RATE: "0.05"
       PAYMENT_LATENCY_MS: "150"
   notification-service:
-    image: {tag: latest}
+    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
     replicas: 1
     port: 8080
     metricsPath: /metrics
@@ -134,7 +134,7 @@ services:
 # Synthetic traffic so dashboards are never empty. Set enabled=false in production.
 loadgen:
   enabled: true
-  image: {tag: latest}
+  image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
   users: 8
   spawnRate: 1
   resources:
