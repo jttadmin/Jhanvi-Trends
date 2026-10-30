@@ -1,0 +1,74 @@
+USER-SUPPLIED VALUES:
+deployment:
+  enabled: true
+  kind: Deployment
+  replicas: 1
+gateway:
+  enabled: true
+  listeners:
+    web:
+      hostname: ""
+      namespacePolicy:
+        from: Selector
+        selector:
+          matchLabels:
+            gateway-access: traefik
+      port: 8000
+      protocol: HTTP
+    websecure:
+      certificateRefs:
+      - kind: Secret
+        name: argocd-tls
+        namespace: traefik
+      - kind: Secret
+        name: shop-tls
+        namespace: traefik
+      hostname: ""
+      mode: Terminate
+      namespacePolicy:
+        from: Selector
+        selector:
+          matchLabels:
+            gateway-access: traefik
+      port: 8443
+      protocol: HTTPS
+gatewayClass:
+  enabled: true
+hostNetwork: false
+nodeSelector:
+  kubernetes.io/hostname: k8s-worker1
+ports:
+  traefik:
+    expose:
+      default: false
+    port: 8080
+  web:
+    expose:
+      default: false
+    exposedPort: 80
+    hostPort: 80
+    port: 8000
+  websecure:
+    expose:
+      default: false
+    exposedPort: 443
+    hostPort: 443
+    port: 8443
+providers:
+  kubernetesCRD:
+    enabled: true
+  kubernetesGateway:
+    enabled: true
+  kubernetesIngress:
+    enabled: true
+    ingressEndpoint:
+      hostname: ingress.bhumaji.com
+    publishedService:
+      enabled: false
+service:
+  enabled: false
+tolerations: []
+updateStrategy:
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
