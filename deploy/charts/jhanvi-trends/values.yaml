@@ -29,8 +29,8 @@ monitoring:
 # Every entry becomes a Deployment + Service (+ ServiceMonitor, HPA, PDB).
 services:
   frontend:
-    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
-    runAsUser: 1000   # numeric UID of the node user
+    image: {tag: 101471cff6d07b11ab2da196c1929b1175789880}
+    runAsUser: 1000 # numeric UID of the node user
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -47,8 +47,8 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8080
       ORDER_SERVICE_URL: http://order-service:8080
   user-service:
-    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
-    runAsUser: 1000   # numeric UID of the node user
+    image: {tag: 101471cff6d07b11ab2da196c1929b1175789880}
+    runAsUser: 1000 # numeric UID of the node user
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -94,7 +94,7 @@ services:
     hpa: {enabled: false}
     database: inventory
   order-service:
-    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
+    image: {tag: 101471cff6d07b11ab2da196c1929b1175789880}
     replicas: 2
     port: 8080
     metricsPath: /actuator/prometheus
@@ -112,8 +112,8 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8080
       PAYMENT_SERVICE_URL: http://payment-service:8080
   payment-service:
-    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
-    runAsUser: 1000   # numeric UID of the node user
+    image: {tag: 101471cff6d07b11ab2da196c1929b1175789880}
+    runAsUser: 1000 # numeric UID of the node user
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -173,7 +173,7 @@ redis:
     image: oliver006/redis_exporter:v1.80.0
 mongodb:
   enabled: true
-  image: mongo:7.0   # 8.x cannot start on kernel 6.19+ (MongoDB SERVER-121912)
+  image: mongo:7.0 # 8.x cannot start on kernel 6.19+ (MongoDB SERVER-121912)
   user: jhanvitrends # database login (no hyphens)
   storage: 5Gi
   storageClassName: ""
