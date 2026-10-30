@@ -47,12 +47,12 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ .Values.global.secretName }}, key: MONGODB_PASSWORD } }
           readinessProbe:
             exec: { command: [mongosh, --quiet, --eval, "db.adminCommand('ping').ok"] }
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 5
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 20
           livenessProbe:
             tcpSocket: { port: mongodb }
-            initialDelaySeconds: 30
+            initialDelaySeconds: 120
             periodSeconds: 20
           resources:
             {{- toYaml $m.resources | nindent 12 }}
