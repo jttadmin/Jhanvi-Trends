@@ -33,14 +33,14 @@ services:
   frontend:
     image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
     runAsUser: 1000 # numeric UID of the node user
-    replicas: 1
+    replicas: 2
     port: 8080
     metricsPath: /metrics
     probes: {liveness: /healthz, readiness: /readyz}
     resources:
       requests: {cpu: 50m, memory: 96Mi}
       limits: {memory: 256Mi}
-    hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpu: 70, memory: 70}
+    hpa: {enabled: true, minReplicas: 2, maxReplicas: 3, cpu: 70, memory: 70}
     secretEnv: [JWT_SECRET]
     env:
       USER_SERVICE_URL: http://user-service:8080
