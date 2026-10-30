@@ -23,7 +23,7 @@ flowchart LR
 | frontend | Node.js 22 / Express 5 | – | Storefront SPA + Backend-for-Frontend; only service behind the ingress; verifies JWTs |
 | user-service | Node.js | PostgreSQL `users` | Register, login (bcrypt + JWT) |
 | catalog-service | Python 3.13 / FastAPI | **MongoDB** `catalog` | Products, search, categories, generated product images |
-| cart-service | Go 1.25 | **Valkey** (Redis-compatible) | Per-user carts (hash per user, 30-day TTL) |
+| cart-service | Go 1.27 | **Valkey** (Redis-compatible) | Per-user carts (hash per user, 30-day TTL) |
 | inventory-service | Go | PostgreSQL `inventory` | Stock levels, all-or-nothing reservations |
 | order-service | Java 21 / Spring Boot 3.5 | PostgreSQL `orders` | Checkout saga: reserve → pay → save → commit, publishes to **Kafka** |
 | payment-service | Node.js | – | Mock gateway with runtime chaos knobs (decline rate, latency) |
