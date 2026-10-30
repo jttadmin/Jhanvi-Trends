@@ -16,7 +16,20 @@ defaultRules:
     kubeSchedulerRecording: false
 
 prometheus:
+  # https://prom.bhumaji.com, behind Traefik basic auth (secret prom-basic-auth, created by hand)
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts: [prom.bhumaji.com]
+    paths: [/]
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-production
+      traefik.ingress.kubernetes.io/router.middlewares: monitoring-prom-auth@kubernetescrd
+    tls:
+      - hosts: [prom.bhumaji.com]
+        secretName: prom-tls
   prometheusSpec:
+    externalUrl: https://prom.bhumaji.com
     # Pick up ServiceMonitors/PrometheusRules from every namespace without a release label.
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
@@ -142,3 +155,17 @@ kube-state-metrics:
   metricLabelsAllowlist:
     - pods=[app.kubernetes.io/name,app.kubernetes.io/part-of]
     - deployments=[app.kubernetes.io/name,app.kubernetes.io/part-of]
+
+# Traefik basic-auth middleware used by the Prometheus ingress.
+# The users secret is created outside Git:
+#   kubectl -n monitoring create secret generic prom-basic-auth --from-literal=users="$(htpasswd -nbB admin '<password>')"
+extraManifests:
+  - apiVersion: traefik.io/v1alpha1
+    kind: Middleware
+    metadata:
+      name: prom-auth
+      namespace: monitoring
+    spec:
+      basicAuth:
+        secret: prom-basic-auth
+        realm: Prometheus
