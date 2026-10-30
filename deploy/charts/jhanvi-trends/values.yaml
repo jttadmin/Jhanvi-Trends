@@ -29,7 +29,7 @@ monitoring:
 # Every entry becomes a Deployment + Service (+ ServiceMonitor, HPA, PDB).
 services:
   frontend:
-    image: {tag: 101471cff6d07b11ab2da196c1929b1175789880}
+    image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
     runAsUser: 1000 # numeric UID of the node user
     replicas: 2
     port: 8080
@@ -47,7 +47,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8080
       ORDER_SERVICE_URL: http://order-service:8080
   user-service:
-    image: {tag: 101471cff6d07b11ab2da196c1929b1175789880}
+    image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
     runAsUser: 1000 # numeric UID of the node user
     replicas: 2
     port: 8080
@@ -63,7 +63,7 @@ services:
       # Accounts with these emails get the admin panel (comma-separated). Log out and in again after changing.
       ADMIN_EMAILS: srinivas.bdn@gmail.com
   catalog-service:
-    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
+    image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -86,7 +86,7 @@ services:
     env:
       REDIS_ADDR: redis:6379
   inventory-service:
-    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
+    image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
     replicas: 2
     port: 8080
     metricsPath: /metrics
@@ -97,7 +97,7 @@ services:
     hpa: {enabled: false}
     database: inventory
   order-service:
-    image: {tag: 101471cff6d07b11ab2da196c1929b1175789880}
+    image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
     replicas: 2
     port: 8080
     metricsPath: /actuator/prometheus
