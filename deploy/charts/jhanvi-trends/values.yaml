@@ -59,6 +59,9 @@ services:
     hpa: {enabled: false}
     database: users
     secretEnv: [JWT_SECRET]
+    env:
+      # Accounts with these emails get the admin panel (comma-separated). Log out and in again after changing.
+      ADMIN_EMAILS: srinivas.bdn@gmail.com
   catalog-service:
     image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
     replicas: 2

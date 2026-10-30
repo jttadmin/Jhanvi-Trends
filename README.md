@@ -111,6 +111,23 @@ gcloud compute firewall-rules create jhanvi-trends-ingress \
 nip.io resolves `anything.<IP>.nip.io` to `<IP>`, so no DNS setup is needed. For a real domain + HTTPS,
 put a GCP HTTP(S) load balancer (instance group on port 80) in front, or add cert-manager.
 
+## Admin panel
+
+Sign in with an email listed in `services.user-service.env.ADMIN_EMAILS`
+(`deploy/charts/jhanvi-trends/values.yaml`) and an **Admin** link appears in the header (`/#/admin`):
+
+| Tab | What you can do |
+|---|---|
+| Dashboard | Product count, hidden products, low / out-of-stock counts, today's orders and revenue, customers |
+| Products | Add, edit, hide/show and delete products; upload a photo (JPEG/PNG/WebP/GIF, up to 3 MB, stored in MongoDB GridFS) |
+| Stock | Set quantities or add/remove units; filter low and out-of-stock items |
+| Orders | Latest 200 orders from every customer, with items, address and status |
+| Customers | Registered accounts with search |
+
+The role is decided at sign-in, so after changing `ADMIN_EMAILS` the person signs out and in again. The admin
+endpoints in catalog, inventory, order and user services are cluster-internal; only the frontend checks the role and
+forwards requests. The demo products and stock are seeded only into an empty database, so your edits survive restarts.
+
 ## Things to try once it's running
 
 **Follow one checkout across every service.** Place an order in the UI → Grafana → Explore → Tempo →

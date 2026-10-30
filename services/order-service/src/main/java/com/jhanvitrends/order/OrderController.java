@@ -37,6 +37,12 @@ public class OrderController {
         return orders.forUser(userId);
     }
 
+    /** All customers' latest orders. Cluster-internal; the frontend BFF checks the admin role. */
+    @GetMapping("/admin/orders")
+    public List<OrderResponse> recent() {
+        return orders.recent();
+    }
+
     @GetMapping("/orders/{id}")
     public OrderResponse get(@PathVariable String id) {
         return orders.byId(id);

@@ -56,7 +56,7 @@ function auth(req, _res, next) {
   try {
     if (!token) throw new Error('missing token');
     const claims = jwt.verify(token, JWT_SECRET);
-    req.user = { id: claims.sub, name: claims.name, email: claims.email };
+    req.user = { id: claims.sub, name: claims.name, email: claims.email, role: claims.role || 'customer' };
     next();
   } catch {
     next(new HttpError(401, 'please sign in'));
@@ -78,6 +78,29 @@ async function enrichedCart(userId) {
   const subtotal = +items.reduce((s, i) => s + i.lineTotal, 0).toFixed(2);
   return { items, itemCount: items.reduce((s, i) => s + i.quantity, 0), subtotal };
 }
+
+function adminOnly(req, _res, next) {
+  if (req.user && req.user.role === 'admin') return next();
+  return next(new HttpError(403, 'admin access required'));
+}
+
+// Forward a raw (binary) body, used for product photo uploads.
+async function callRaw(base, urlPath, { method, body, contentType, timeoutMs = 15000 }) {
+  let res;
+  try {
+    res = await fetch(base + urlPath, { method, body, headers: { 'content-type': contentType }, signal: AbortSignal.timeout(timeoutMs) });
+  } catch (err) {
+    throw new HttpError(503, `upstream ${base} unavailable: ${err.message}`);
+  }
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new HttpError(res.status, (data && (data.error || data.detail)) || `upstream error ${res.status}`, data);
+  return data;
+}
+
+const adminChanges = new client.Counter({
+  name: 'admin_actions_total', help: 'Admin panel actions', labelNames: ['action'], registers: [register],
+});
 
 const app = express();
 app.use(express.json());
@@ -175,6 +198,116 @@ api.get('/orders/:id', auth, wrap(async (req, res) => {
   res.json(order);
 }));
 
+// ---------- admin panel API (role "admin" only) ----------
+const admin = express.Router();
+admin.use(auth, adminOnly);
+
+const PRODUCT_FIELDS = ['name', 'category', 'brand', 'price', 'mrp', 'description', 'features', 'active', 'icon'];
+const productBody = (b = {}) => Object.fromEntries(PRODUCT_FIELDS.filter((k) => b[k] !== undefined).map((k) => [k, b[k]]));
+
+async function stockMap() {
+  const rows = await call(svc.inventory, '/stock').catch((err) => {
+    logger.warn({ err: err.message }, 'stock lookup failed for admin view');
+    return null;
+  });
+  return rows ? Object.fromEntries(rows.map((r) => [r.productId, r.available])) : null;
+}
+
+admin.get('/summary', wrap(async (_req, res) => {
+  const [products, stock, orders, customers] = await Promise.all([
+    call(svc.catalog, '/products?includeInactive=true&limit=200'),
+    stockMap(),
+    call(svc.order, '/admin/orders').catch(() => []),
+    call(svc.user, '/users?limit=1').catch(() => ({ total: null })),
+  ]);
+  const today = new Date().toISOString().slice(0, 10);
+  const confirmed = orders.filter((o) => o.status === 'CONFIRMED');
+  res.json({
+    products: products.total,
+    hiddenProducts: products.items.filter((p) => !p.active).length,
+    lowStock: stock ? products.items.filter((p) => p.active && (stock[p.id] ?? 0) < 10).length : null,
+    outOfStock: stock ? products.items.filter((p) => p.active && (stock[p.id] ?? 0) === 0).length : null,
+    ordersToday: orders.filter((o) => String(o.createdAt).startsWith(today)).length,
+    revenueToday: confirmed.filter((o) => String(o.createdAt).startsWith(today)).reduce((s, o) => s + Number(o.totalAmount), 0),
+    recentOrders: orders.length,
+    customers: customers.total,
+  });
+}));
+
+admin.get('/categories', wrap(async (_req, res) => res.json(await call(svc.catalog, '/categories?includeInactive=true'))));
+
+admin.get('/products', wrap(async (req, res) => {
+  const qs = new URLSearchParams({ includeInactive: 'true', limit: '200', sort: 'newest' });
+  if (req.query.q) qs.set('q', req.query.q);
+  const [{ items, total }, stock] = await Promise.all([call(svc.catalog, `/products?${qs}`), stockMap()]);
+  res.json({ items: items.map((p) => ({ ...p, stock: stock ? stock[p.id] ?? 0 : null })), total });
+}));
+
+admin.post('/products', wrap(async (req, res) => {
+  const product = await call(svc.catalog, '/products', { method: 'POST', body: productBody(req.body) });
+  const initial = Number(req.body.initialStock ?? 0);
+  let stock = null;
+  try {
+    stock = (await call(svc.inventory, `/stock/${product.id}`, { method: 'PUT', body: { available: Math.max(initial, 0) } })).available;
+  } catch (err) {
+    logger.error({ err: err.message, productId: product.id }, 'product created but stock could not be set');
+  }
+  adminChanges.inc({ action: 'product_create' });
+  logger.info({ productId: product.id, by: req.user.email }, 'admin created product');
+  res.status(201).json({ ...product, stock });
+}));
+
+admin.put('/products/:id', wrap(async (req, res) => {
+  const product = await call(svc.catalog, `/products/${Number(req.params.id)}`, { method: 'PUT', body: productBody(req.body) });
+  adminChanges.inc({ action: 'product_update' });
+  logger.info({ productId: product.id, by: req.user.email }, 'admin updated product');
+  res.json(product);
+}));
+
+admin.delete('/products/:id', wrap(async (req, res) => {
+  const id = Number(req.params.id);
+  await call(svc.catalog, `/products/${id}`, { method: 'DELETE' });
+  await call(svc.inventory, `/stock/${id}`, { method: 'DELETE' }).catch((err) =>
+    logger.warn({ err: err.message, productId: id }, 'product deleted but stock row remains'));
+  adminChanges.inc({ action: 'product_delete' });
+  logger.info({ productId: id, by: req.user.email }, 'admin deleted product');
+  res.status(204).end();
+}));
+
+admin.put('/products/:id/image', express.raw({ type: 'image/*', limit: '3mb' }), wrap(async (req, res) => {
+  if (!Buffer.isBuffer(req.body) || !req.body.length) throw new HttpError(400, 'choose a JPEG, PNG, WebP or GIF photo');
+  const product = await callRaw(svc.catalog, `/products/${Number(req.params.id)}/image`, {
+    method: 'PUT', body: req.body, contentType: req.get('content-type'),
+  });
+  adminChanges.inc({ action: 'photo_upload' });
+  res.json(product);
+}));
+
+admin.delete('/products/:id/image', wrap(async (req, res) => {
+  res.json(await call(svc.catalog, `/products/${Number(req.params.id)}/image`, { method: 'DELETE' }));
+}));
+
+admin.put('/stock/:id', wrap(async (req, res) => {
+  const out = await call(svc.inventory, `/stock/${Number(req.params.id)}`, { method: 'PUT', body: { available: Number(req.body.available) } });
+  adminChanges.inc({ action: 'stock_set' });
+  res.json(out);
+}));
+
+admin.post('/stock/:id/adjust', wrap(async (req, res) => {
+  const out = await call(svc.inventory, `/stock/${Number(req.params.id)}/adjust`, { method: 'POST', body: { delta: Number(req.body.delta) } });
+  adminChanges.inc({ action: 'stock_adjust' });
+  res.json(out);
+}));
+
+admin.get('/orders', wrap(async (_req, res) => res.json(await call(svc.order, '/admin/orders', { timeoutMs: 10000 }))));
+
+admin.get('/customers', wrap(async (req, res) => {
+  const qs = new URLSearchParams({ limit: String(Math.min(Number(req.query.limit) || 200, 500)) });
+  if (req.query.q) qs.set('q', req.query.q);
+  res.json(await call(svc.user, `/users?${qs}`));
+}));
+
+app.use('/api/admin', admin);
 app.use('/api', api);
 app.use('/api', (_req, res) => res.status(404).json({ error: 'not found' }));
 app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '5m' }));

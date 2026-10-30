@@ -169,6 +169,10 @@ public class OrderService {
         return repository.findTop50ByUserIdOrderByCreatedAtDesc(userId).stream().map(OrderResponse::from).toList();
     }
 
+    public List<OrderResponse> recent() {
+        return repository.findTop200ByOrderByCreatedAtDesc().stream().map(OrderResponse::from).toList();
+    }
+
     public OrderResponse byId(String id) {
         UUID uuid;
         try {

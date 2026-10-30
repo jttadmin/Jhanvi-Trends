@@ -29,6 +29,9 @@ var (
 	reservations = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "inventory_reservations_total", Help: "Reservation attempts by result",
 	}, []string{"result"})
+	stockChanges = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "inventory_admin_changes_total", Help: "Stock changes made from the admin panel",
+	}, []string{"action"})
 	lowStock = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "inventory_low_stock_products", Help: "Products with fewer than 10 units available",
 	})
@@ -146,6 +149,67 @@ func (s *server) reserve(w http.ResponseWriter, r *http.Request) {
 }
 
 // settle moves a reservation to COMMITTED, or to RELEASED and puts the stock back.
+// setStock sets the available quantity for a product, creating the row if needed (admin).
+func (s *server) setStock(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("productId"))
+	var in struct {
+		Available *int `json:"available"`
+	}
+	if err != nil || json.NewDecoder(r.Body).Decode(&in) != nil || in.Available == nil || *in.Available < 0 || *in.Available > 1000000 {
+		s.fail(w, r, http.StatusBadRequest, "available must be a number between 0 and 1000000", nil)
+		return
+	}
+	var available int
+	err = s.db.QueryRow(r.Context(), `INSERT INTO stock (product_id, available) VALUES ($1, $2)
+		ON CONFLICT (product_id) DO UPDATE SET available = EXCLUDED.available, updated_at = now()
+		RETURNING available`, id, *in.Available).Scan(&available)
+	if err != nil {
+		s.fail(w, r, http.StatusServiceUnavailable, "database unavailable", err)
+		return
+	}
+	stockChanges.WithLabelValues("set").Inc()
+	s.log.InfoContext(r.Context(), "stock set by admin", "productId", id, "available", available)
+	writeJSON(w, http.StatusOK, map[string]int{"productId": id, "available": available})
+}
+
+// adjustStock adds or removes units (delta can be negative; stock never goes below zero) (admin).
+func (s *server) adjustStock(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("productId"))
+	var in struct {
+		Delta int `json:"delta"`
+	}
+	if err != nil || json.NewDecoder(r.Body).Decode(&in) != nil || in.Delta == 0 || in.Delta < -1000000 || in.Delta > 1000000 {
+		s.fail(w, r, http.StatusBadRequest, "delta must be a non-zero number", nil)
+		return
+	}
+	var available int
+	err = s.db.QueryRow(r.Context(), `INSERT INTO stock (product_id, available) VALUES ($1, GREATEST($2, 0))
+		ON CONFLICT (product_id) DO UPDATE SET available = GREATEST(stock.available + $2, 0), updated_at = now()
+		RETURNING available`, id, in.Delta).Scan(&available)
+	if err != nil {
+		s.fail(w, r, http.StatusServiceUnavailable, "database unavailable", err)
+		return
+	}
+	stockChanges.WithLabelValues("adjust").Inc()
+	s.log.InfoContext(r.Context(), "stock adjusted by admin", "productId", id, "delta", in.Delta, "available", available)
+	writeJSON(w, http.StatusOK, map[string]int{"productId": id, "available": available})
+}
+
+// deleteStock removes a product's stock row when the product is deleted (admin).
+func (s *server) deleteStock(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("productId"))
+	if err != nil {
+		s.fail(w, r, http.StatusBadRequest, "invalid product id", nil)
+		return
+	}
+	if _, err := s.db.Exec(r.Context(), "DELETE FROM stock WHERE product_id = $1", id); err != nil {
+		s.fail(w, r, http.StatusServiceUnavailable, "database unavailable", err)
+		return
+	}
+	stockChanges.WithLabelValues("delete").Inc()
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *server) settle(release bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ref, ctx := r.PathValue("orderRef"), r.Context()
@@ -184,9 +248,14 @@ func migrate(ctx context.Context, db *pgxpool.Pool, log *slog.Logger) {
 				quantity INT NOT NULL, status TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 			CREATE INDEX IF NOT EXISTS reservations_order_ref ON reservations (order_ref);`)
 		if err == nil {
-			// Seed stock for the 24 catalog products (fixed IDs).
-			for id := 1; id <= 24; id++ {
-				_, _ = db.Exec(ctx, "INSERT INTO stock (product_id, available) VALUES ($1, $2) ON CONFLICT DO NOTHING", id, 25+rand.IntN(200))
+			// Seed stock for the 24 demo catalog products, only into an empty table,
+			// so stock the admin removes or edits is never overwritten on restart.
+			var n int
+			if err := db.QueryRow(ctx, "SELECT count(*) FROM stock").Scan(&n); err == nil && n == 0 {
+				for id := 1; id <= 24; id++ {
+					_, _ = db.Exec(ctx, "INSERT INTO stock (product_id, available) VALUES ($1, $2) ON CONFLICT DO NOTHING", id, 25+rand.IntN(200))
+				}
+				log.Info("seeded demo stock")
 			}
 			log.Info("database ready")
 			return
@@ -254,6 +323,9 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /stock", s.listStock)
 	mux.HandleFunc("GET /stock/{productId}", s.getStock)
+	mux.HandleFunc("PUT /stock/{productId}", s.setStock)
+	mux.HandleFunc("POST /stock/{productId}/adjust", s.adjustStock)
+	mux.HandleFunc("DELETE /stock/{productId}", s.deleteStock)
 	mux.HandleFunc("POST /reservations", s.reserve)
 	mux.HandleFunc("POST /reservations/{orderRef}/commit", s.settle(false))
 	mux.HandleFunc("POST /reservations/{orderRef}/release", s.settle(true))

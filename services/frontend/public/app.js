@@ -71,7 +71,9 @@
       $('#hello').textContent = `Hi, ${state.user.name.split(' ')[0]}`;
       $('#account-label').textContent = 'My account';
       link.href = '#/account';
+      $('#admin-link').hidden = state.user.role !== 'admin';
     } else {
+      $('#admin-link').hidden = true;
       $('#hello').textContent = 'Welcome';
       $('#account-label').textContent = 'Sign in';
       link.href = '#/login';
@@ -103,7 +105,7 @@
       toast(e.message, true);
     }
   }
-  window.sv = { addToCart };
+  window.sv = { addToCart, api, esc, inr, toast, state, requireLogin, img };
 
   const loading = (n = 8) => `<div class="grid">${'<div class="card"><div class="thumb skeleton"></div><div class="skeleton" style="height:16px"></div><div class="skeleton" style="height:16px;width:60%"></div></div>'.repeat(n)}</div>`;
 
@@ -112,7 +114,7 @@
       <a class="thumb" href="#/product/${p.id}">${img(p)}</a>
       <span class="brand">${esc(p.brand)}</span>
       <a class="title" href="#/product/${p.id}">${esc(p.name)}</a>
-      <div>${stars(p.rating)} <span class="reviews">${inr(p.reviewCount)}</span></div>
+      <div>${p.reviewCount ? `${stars(p.rating)} <span class="reviews">${inr(p.reviewCount)}</span>` : '<span class="new-badge">New</span>'}</div>
       ${priceHtml(p)}
       <span class="perk">✓ Free delivery</span>
       <button class="btn" onclick="sv.addToCart(${p.id})">Add to cart</button>
@@ -190,7 +192,7 @@
           <div>
             <h1>${esc(p.name)}</h1>
             <a href="#/?q=${encodeURIComponent(p.brand)}">More from ${esc(p.brand)}</a>
-            <div>${p.rating} ${stars(p.rating)} <span class="reviews">${inr(p.reviewCount)} ratings</span></div>
+            <div>${p.reviewCount ? `${p.rating} ${stars(p.rating)} <span class="reviews">${inr(p.reviewCount)} ratings</span>` : '<span class="new-badge">New arrival</span>'}</div>
             <hr />
             ${priceHtml(p)}
             <p class="muted">Inclusive of all taxes</p>
@@ -401,6 +403,13 @@
       case 'login': return authPage('login', params);
       case 'register': return authPage('register', params);
       case 'account': return accountPage();
+      case 'admin':
+        if (!requireLogin()) return;
+        if (state.user.role !== 'admin') {
+          app.innerHTML = '<div class="panel empty"><h2>Admins only</h2><p class="muted">Your account does not have admin access.</p></div>';
+          return;
+        }
+        return window.svAdmin.page(parts[1] || 'dashboard', params);
       default: return homePage(params);
     }
   }
@@ -416,6 +425,14 @@
       $('#search-cat').innerHTML = '<option value="">All</option>' + state.categories.map((c) => `<option>${esc(c.name)}</option>`).join('');
       $('#subnav').innerHTML = '<a href="#/" data-cat="">All</a>' + state.categories.map((c) => `<a href="#/?category=${encodeURIComponent(c.name)}" data-cat="${esc(c.name)}">${esc(c.name)}</a>`).join('');
     } catch { /* catalog down: page still renders an error */ }
+    if (state.token) {
+      try {
+        const me = await api('/me');
+        state.user = { ...state.user, ...me };
+        localStorage.setItem('sv_user', JSON.stringify(state.user));
+        renderHeader();
+      } catch { /* token expired: api() already signed out */ }
+    }
     window.addEventListener('hashchange', route);
     refreshCartCount();
     route();
