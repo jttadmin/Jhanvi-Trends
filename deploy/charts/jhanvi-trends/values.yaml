@@ -1,0 +1,207 @@
+# Jhanvi Trends umbrella chart values.
+# CI updates services.<name>.image.tag after each image build (GitOps).
+
+global:
+  # Images are pushed by GitHub Actions to ghcr.io/<owner>/jhanvi-trends-<service>.
+  imageRegistry: ghcr.io/jttadmin
+  imagePrefix: jhanvi-trends-
+  imagePullPolicy: IfNotPresent
+  # e.g. [{name: ghcr-pull}] if your GHCR packages are private (see README)
+  imagePullSecrets: []
+  environment: dev
+  # Secret holding POSTGRES_PASSWORD, MONGODB_PASSWORD, JWT_SECRET (created by scripts/bootstrap.sh).
+  secretName: jhanvi-trends-secrets
+  tracesSampleRatio: "1.0"
+
+ingress:
+  enabled: true
+  className: traefik
+  # Set to shop.<NODE_EXTERNAL_IP>.nip.io (or your own DNS name).
+  host: shop.CHANGE_ME_IP.nip.io
+  annotations: {}
+  tls: []
+
+monitoring:
+  serviceMonitors: true
+  prometheusRules: true
+  grafanaDashboards: true
+
+# Every entry becomes a Deployment + Service (+ ServiceMonitor, HPA, PDB).
+services:
+  frontend:
+    image: { tag: latest }
+    replicas: 2
+    port: 8080
+    metricsPath: /metrics
+    probes: { liveness: /healthz, readiness: /readyz }
+    resources:
+      requests: { cpu: 50m, memory: 96Mi }
+      limits: { memory: 256Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 6, cpu: 70 }
+    secretEnv: [JWT_SECRET]
+    env:
+      USER_SERVICE_URL: http://user-service:8080
+      CATALOG_SERVICE_URL: http://catalog-service:8080
+      CART_SERVICE_URL: http://cart-service:8080
+      INVENTORY_SERVICE_URL: http://inventory-service:8080
+      ORDER_SERVICE_URL: http://order-service:8080
+
+  user-service:
+    image: { tag: latest }
+    replicas: 2
+    port: 8080
+    metricsPath: /metrics
+    probes: { liveness: /healthz, readiness: /readyz }
+    resources:
+      requests: { cpu: 50m, memory: 96Mi }
+      limits: { memory: 256Mi }
+    hpa: { enabled: false }
+    database: users
+    secretEnv: [JWT_SECRET]
+
+  catalog-service:
+    image: { tag: latest }
+    replicas: 2
+    port: 8080
+    metricsPath: /metrics
+    probes: { liveness: /healthz, readiness: /readyz }
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { memory: 384Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 5, cpu: 70 }
+    mongodb: catalog        # MongoDB database name
+
+  cart-service:
+    image: { tag: latest }
+    replicas: 2
+    port: 8080
+    metricsPath: /metrics
+    probes: { liveness: /healthz, readiness: /readyz }
+    resources:
+      requests: { cpu: 25m, memory: 32Mi }
+      limits: { memory: 128Mi }
+    hpa: { enabled: false }
+    env:
+      REDIS_ADDR: redis:6379
+
+  inventory-service:
+    image: { tag: latest }
+    replicas: 2
+    port: 8080
+    metricsPath: /metrics
+    probes: { liveness: /healthz, readiness: /readyz }
+    resources:
+      requests: { cpu: 25m, memory: 32Mi }
+      limits: { memory: 128Mi }
+    hpa: { enabled: false }
+    database: inventory
+
+  order-service:
+    image: { tag: latest }
+    replicas: 2
+    port: 8080
+    metricsPath: /actuator/prometheus
+    probes:
+      liveness: /actuator/health/liveness
+      readiness: /actuator/health/readiness
+      startupFailureThreshold: 30   # JVM + agent startup
+    resources:
+      requests: { cpu: 100m, memory: 384Mi }
+      limits: { memory: 768Mi }
+    hpa: { enabled: false }
+    database: orders
+    kafka: true
+    env:
+      INVENTORY_SERVICE_URL: http://inventory-service:8080
+      PAYMENT_SERVICE_URL: http://payment-service:8080
+
+  payment-service:
+    image: { tag: latest }
+    replicas: 2
+    port: 8080
+    metricsPath: /metrics
+    probes: { liveness: /healthz, readiness: /readyz }
+    resources:
+      requests: { cpu: 25m, memory: 64Mi }
+      limits: { memory: 192Mi }
+    hpa: { enabled: false }
+    env:
+      PAYMENT_FAILURE_RATE: "0.05"
+      PAYMENT_LATENCY_MS: "150"
+
+  notification-service:
+    image: { tag: latest }
+    replicas: 1
+    port: 8080
+    metricsPath: /metrics
+    # Only a metrics server listens on HTTP; probe that.
+    probes: { liveness: /metrics, readiness: /metrics }
+    resources:
+      requests: { cpu: 25m, memory: 64Mi }
+      limits: { memory: 192Mi }
+    hpa: { enabled: false }
+    kafka: true
+
+# Synthetic traffic so dashboards are never empty. Set enabled=false in production.
+loadgen:
+  enabled: true
+  image: { tag: latest }
+  users: 8
+  spawnRate: 1
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 384Mi }
+
+# Datastores run in-cluster as single-replica StatefulSets on the default StorageClass
+# (local-path on a kubeadm cluster). Point the services elsewhere for production.
+postgres:
+  enabled: true
+  image: postgres:17-alpine
+  user: jhanvitrends   # database login (no hyphens)
+  databases: [users, inventory, orders]
+  storage: 5Gi
+  storageClassName: ""
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+  exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
+
+# Valkey: BSD-licensed, Redis-protocol compatible fork (Redis 8 is RSAL/SSPL/AGPL).
+redis:
+  enabled: true
+  image: valkey/valkey:8.1-alpine
+  storage: 1Gi
+  storageClassName: ""
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 256Mi }
+  exporter:
+    image: oliver006/redis_exporter:v1.80.0
+
+mongodb:
+  enabled: true
+  image: mongo:8.0
+  user: jhanvitrends   # database login (no hyphens)
+  storage: 5Gi
+  storageClassName: ""
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+  exporter:
+    image: percona/mongodb_exporter:0.48.0
+
+# Single-node Kafka in KRaft mode (no ZooKeeper). Topic order-events is created by order-service.
+kafka:
+  enabled: true
+  image: apache/kafka:4.1.1
+  # Any base64 UUID; keep it stable once the volume has data.
+  clusterId: 5L6g3nShT-eMCtK--X86sw
+  storage: 5Gi
+  storageClassName: ""
+  resources:
+    requests: { cpu: 200m, memory: 768Mi }
+    limits: { memory: 1536Mi }
+  heapOpts: "-Xms512m -Xmx512m"
+  exporter:
+    image: danielqsj/kafka-exporter:v1.9.0

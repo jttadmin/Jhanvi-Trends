@@ -1,0 +1,19 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "author": "Bhumaji Systems",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --require @opentelemetry/auto-instrumentations-node/register src/server.js"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.10.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.82.0",
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "pino": "^10.4.0",
+    "prom-client": "^15.1.3"
+  }
+}

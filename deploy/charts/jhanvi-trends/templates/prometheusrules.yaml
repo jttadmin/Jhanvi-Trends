@@ -1,0 +1,81 @@
+{{- if .Values.monitoring.prometheusRules }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: jhanvi-trends
+  labels:
+    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: jhanvi-trends.recording
+      interval: 30s
+      rules:
+        - record: jhanvi_trends:http_requests:rate5m
+          expr: sum by (namespace, job) (rate(http_server_requests_seconds_count[5m]))
+        - record: jhanvi_trends:http_errors:rate5m
+          expr: sum by (namespace, job) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+        - record: jhanvi_trends:http_error_ratio:rate5m
+          expr: jhanvi_trends:http_errors:rate5m / clamp_min(jhanvi_trends:http_requests:rate5m, 1e-9)
+        - record: jhanvi_trends:http_latency_p95:5m
+          expr: histogram_quantile(0.95, sum by (namespace, job, le) (rate(http_server_requests_seconds_bucket[5m])))
+
+    - name: jhanvi-trends.alerts
+      rules:
+        - alert: JhanviTrendsHighErrorRate
+          expr: jhanvi_trends:http_error_ratio:rate5m > 0.05 and jhanvi_trends:http_requests:rate5m > 0.1
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ "{{ $labels.job }}" }} is returning >5% server errors"
+            description: "Error ratio is {{ "{{ $value | humanizePercentage }}" }} over the last 5 minutes. Check the Loki logs and Tempo traces for {{ "{{ $labels.job }}" }}."
+        - alert: JhanviTrendsHighLatency
+          expr: jhanvi_trends:http_latency_p95:5m > 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ "{{ $labels.job }}" }} p95 latency above 1s"
+            description: "p95 is {{ "{{ $value | humanizeDuration }}" }}."
+        - alert: JhanviTrendsPaymentDeclineSpike
+          expr: |
+            sum(rate(payments_total{status="declined"}[10m]))
+              / clamp_min(sum(rate(payments_total[10m])), 1e-9) > 0.2
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "More than 20% of payments are being declined"
+            description: "Decline ratio {{ "{{ $value | humanizePercentage }}" }}. Check the payment-service chaos settings."
+        - alert: JhanviTrendsNoOrders
+          expr: sum(increase(orders_placed_total[30m])) == 0 and sum(increase(checkouts_total[30m])) > 0
+          for: 10m
+          labels: { severity: critical }
+          annotations:
+            summary: "Checkouts are happening but no orders are being confirmed"
+            description: "Customers are trying to check out but order-service has confirmed 0 orders in 30 minutes."
+        - alert: JhanviTrendsLowStock
+          expr: max(inventory_low_stock_products) > 3
+          for: 15m
+          labels: { severity: info }
+          annotations:
+            summary: "{{ "{{ $value }}" }} products are low on stock"
+            description: "More than 3 products have fewer than 10 units available."
+        - alert: JhanviTrendsNotificationBacklog
+          expr: sum(kafka_consumergroup_lag{consumergroup="notification-service", topic="order-events"}) > 100
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "notification-service is falling behind on order-events"
+            description: "Consumer lag is {{ "{{ $value }}" }} messages. Is notification-service running?"
+        - alert: JhanviTrendsServiceDown
+          expr: up{namespace="{{ .Release.Namespace }}"} == 0
+          for: 3m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ "{{ $labels.job }}" }} target {{ "{{ $labels.instance }}" }} is down"
+            description: "Prometheus cannot scrape this pod."
+        - alert: JhanviTrendsPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="{{ .Release.Namespace }}"}[15m]) > 2
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ "{{ $labels.pod }}" }} restarted {{ "{{ $value }}" }} times in 15m"
+            description: "Look at the previous container's logs in Loki."
+{{- end }}

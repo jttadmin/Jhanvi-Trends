@@ -1,0 +1,60 @@
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: order-service
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:orders}
+    username: ${PGUSER:jhanvitrends}
+    password: ${PGPASSWORD:jhanvitrends}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      properties:
+        spring.json.add.type.headers: false
+        # Fail fast instead of blocking checkout for 60s when Kafka is down.
+        max.block.ms: 3000
+        delivery.timeout.ms: 10000
+        request.timeout.ms: 5000
+
+jhanvitrends:
+  inventory-url: ${INVENTORY_SERVICE_URL:http://inventory-service:8080}
+  payment-url: ${PAYMENT_SERVICE_URL:http://payment-service:8080}
+  order-events-topic: ${ORDER_EVENTS_TOPIC:order-events}
+  currency: INR
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    distribution:
+      # Same bucket boundaries as the Node/Python/Go services (http_server_requests_seconds).
+      slo:
+        http.server.requests: 5ms,10ms,25ms,50ms,100ms,250ms,500ms,1s,2.5s,5s
+
+# JSON logs on stdout. The OpenTelemetry Java agent puts trace_id/span_id into the MDC,
+# and the logstash format writes MDC entries as top-level fields.
+logging:
+  structured:
+    format:
+      console: logstash

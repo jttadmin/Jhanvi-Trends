@@ -1,0 +1,64 @@
+# OpenTelemetry Collector as a DaemonSet (one per node):
+#  - traces: apps send OTLP to <node IP>:4317 (hostPort) -> Tempo
+#  - logs:   tails /var/log/pods for every container -> Loki (native OTLP endpoint)
+fullnameOverride: otel-collector
+mode: daemonset
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+presets:
+  logsCollection:
+    enabled: true
+  kubernetesAttributes:
+    enabled: true
+    extractAllPodLabels: false
+
+ports:
+  otlp:
+    enabled: true
+    hostPort: 4317
+  otlp-http:
+    enabled: true
+    hostPort: 4318
+  jaeger-compact: { enabled: false }
+  jaeger-thrift: { enabled: false }
+  jaeger-grpc: { enabled: false }
+  zipkin: { enabled: false }
+
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 512Mi }
+
+# Run on control-plane nodes too, so their pod logs are collected.
+tolerations:
+  - operator: Exists
+    effect: NoSchedule
+
+config:
+  exporters:
+    otlp/tempo:
+      endpoint: tempo.monitoring:4317
+      tls:
+        insecure: true
+    otlphttp/loki:
+      endpoint: http://loki.monitoring:3100/otlp
+  processors:
+    # Loki indexes service.name as service_name. Pods without an OTel SDK (datastores,
+    # system pods) get their container name instead of "unknown_service".
+    resource/service-name:
+      attributes:
+        - key: service.name
+          from_attribute: k8s.container.name
+          action: insert
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, k8sattributes, batch]
+        exporters: [otlp/tempo]
+      logs:
+        receivers: [filelog]
+        processors: [memory_limiter, k8sattributes, resource/service-name, batch]
+        exporters: [otlphttp/loki]
+      metrics: null

@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jhanvi-trends
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: jhanvi-trends
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jhanvi-trends
+  source:
+    repoURL: https://github.com/jttadmin/jhanvi-trends.git
+    targetRevision: main
+    path: deploy/charts/jhanvi-trends
+    helm:
+      releaseName: jhanvi-trends
+      valueFiles: [values.yaml]
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 5m }
+    syncOptions:
+      - CreateNamespace=true
+  # HPAs own the replica count of autoscaled Deployments.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers: [/spec/replicas]

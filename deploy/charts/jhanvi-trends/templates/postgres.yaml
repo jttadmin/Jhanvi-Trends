@@ -1,0 +1,116 @@
+{{- if .Values.postgres.enabled }}
+{{- $p := .Values.postgres }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  labels:
+    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+data:
+  01-databases.sql: |
+    {{- range $p.databases }}
+    CREATE DATABASE {{ . }} OWNER {{ $p.user }};
+    {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.selector" "postgres" | nindent 4 }}
+spec:
+  selector:
+    {{- include "jhanvi-trends.selector" "postgres" | nindent 4 }}
+  ports:
+    - { name: postgres, port: 5432, targetPort: postgres }
+    - { name: metrics, port: 9187, targetPort: metrics }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.selector" "postgres" | nindent 4 }}
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "jhanvi-trends.selector" "postgres" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "jhanvi-trends.selector" "postgres" | nindent 8 }}
+      annotations:
+        checksum/init: {{ $p.databases | toJson | sha256sum | trunc 12 }}
+    spec:
+      securityContext:
+        fsGroup: 70
+      containers:
+        - name: postgres
+          image: {{ $p.image }}
+          ports:
+            - { name: postgres, containerPort: 5432 }
+          env:
+            - { name: POSTGRES_USER, value: {{ $p.user | quote }} }
+            - { name: POSTGRES_DB, value: postgres }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.global.secretName }}, key: POSTGRES_PASSWORD } }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          readinessProbe:
+            exec: { command: [sh, -c, 'pg_isready -U "$POSTGRES_USER" -d postgres'] }
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: [sh, -c, 'pg_isready -U "$POSTGRES_USER" -d postgres'] }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            {{- toYaml $p.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d }
+        - name: exporter
+          image: {{ $p.exporter.image }}
+          ports:
+            - { name: metrics, containerPort: 9187 }
+          env:
+            - { name: DATA_SOURCE_URI, value: "localhost:5432/postgres?sslmode=disable" }
+            - { name: DATA_SOURCE_USER, value: {{ $p.user | quote }} }
+            - name: DATA_SOURCE_PASS
+              valueFrom: { secretKeyRef: { name: {{ .Values.global.secretName }}, key: POSTGRES_PASSWORD } }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 96Mi }
+      volumes:
+        - name: init
+          configMap: { name: postgres-init }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with $p.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $p.storage }}
+{{- if .Values.monitoring.serviceMonitors }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postgres
+  labels:
+    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+spec:
+  jobLabel: app.kubernetes.io/name
+  selector:
+    matchLabels:
+      {{- include "jhanvi-trends.selector" "postgres" | nindent 6 }}
+  endpoints:
+    - { port: metrics, interval: 30s }
+{{- end }}
+{{- end }}

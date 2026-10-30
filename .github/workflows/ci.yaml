@@ -1,0 +1,158 @@
+# Build -> scan -> push images for changed services, then bump their tags in the Helm
+# values so Argo CD rolls them out (GitOps: the cluster is never touched from CI).
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths: ["services/**", "deploy/charts/**", ".github/workflows/ci.yaml"]
+  pull_request:
+    paths: ["services/**", "deploy/charts/**", ".github/workflows/ci.yaml"]
+  workflow_dispatch:
+    inputs:
+      all:
+        description: Build every service
+        type: boolean
+        default: true
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: jhanvi-trends-
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.pick.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend: services/frontend/**
+            user-service: services/user-service/**
+            catalog-service: services/catalog-service/**
+            cart-service: services/cart-service/**
+            inventory-service: services/inventory-service/**
+            order-service: services/order-service/**
+            payment-service: services/payment-service/**
+            notification-service: services/notification-service/**
+            loadgen: services/loadgen/**
+      - id: pick
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.all }}" == "true" ]]; then
+            echo 'services=["frontend","user-service","catalog-service","cart-service","inventory-service","order-service","payment-service","notification-service","loadgen"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'services=${{ steps.filter.outputs.changes }}' >> "$GITHUB_OUTPUT"
+          fi
+
+  # Blocks PRs that add a dependency under a strong-copyleft or source-available license.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          deny-licenses: GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-only, GPL-3.0-or-later, AGPL-3.0-only, AGPL-3.0-or-later, SSPL-1.0, BUSL-1.1
+          fail-on-severity: critical
+
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: |
+          helm lint deploy/charts/jhanvi-trends
+          helm template jhanvi-trends deploy/charts/jhanvi-trends -n jhanvi-trends > /tmp/rendered.yaml
+          echo "Rendered $(grep -c '^kind:' /tmp/rendered.yaml) objects"
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.services != '[]' && needs.changes.outputs.services != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image name
+        id: img
+        run: echo "name=${REGISTRY}/${GITHUB_REPOSITORY_OWNER,,}/${IMAGE_PREFIX}${{ matrix.service }}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build (and push on main)
+        uses: docker/build-push-action@v6
+        with:
+          context: services/${{ matrix.service }}
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: |
+            ${{ steps.img.outputs.name }}:${{ github.sha }}
+            ${{ steps.img.outputs.name }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - name: Vulnerability scan (report only)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ steps.img.outputs.name }}:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+      - name: License scan (report only)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ steps.img.outputs.name }}:${{ github.sha }}
+          scanners: license
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: "0"
+
+  bump-tags:
+    needs: [changes, build, helm-lint]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Point the chart at the new images
+        env:
+          SERVICES: ${{ needs.changes.outputs.services }}
+        run: |
+          for svc in $(echo "$SERVICES" | jq -r '.[]'); do
+            if [[ "$svc" == "loadgen" ]]; then
+              yq -i ".loadgen.image.tag = \"${GITHUB_SHA}\"" deploy/charts/jhanvi-trends/values.yaml
+            else
+              yq -i ".services.\"$svc\".image.tag = \"${GITHUB_SHA}\"" deploy/charts/jhanvi-trends/values.yaml
+            fi
+            echo "bumped $svc -> ${GITHUB_SHA::7}"
+          done
+          git diff --stat
+      - name: Commit
+        run: |
+          git config user.name "jhanvi-trends-ci"
+          git config user.email "jhanvi-trends-ci@users.noreply.github.com"
+          git add deploy/charts/jhanvi-trends/values.yaml
+          git diff --cached --quiet && { echo "no changes"; exit 0; }
+          git commit -m "deploy: bump images to ${GITHUB_SHA::7} [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main

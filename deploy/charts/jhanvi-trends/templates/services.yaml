@@ -1,0 +1,176 @@
+{{- $root := . -}}
+{{- range $name, $svc := .Values.services }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "jhanvi-trends.labels" $root | nindent 4 }}
+    {{- include "jhanvi-trends.selector" $name | nindent 4 }}
+spec:
+  {{- if not (and $svc.hpa $svc.hpa.enabled) }}
+  replicas: {{ $svc.replicas | default 1 }}
+  {{- end }}
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      {{- include "jhanvi-trends.selector" $name | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "jhanvi-trends.selector" $name | nindent 8 }}
+        app.kubernetes.io/version: {{ $svc.image.tag | quote }}
+    spec:
+      {{- include "jhanvi-trends.pullSecrets" $root | nindent 6 }}
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "jhanvi-trends.selector" $name | nindent 14 }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: {{ $name }}
+          image: {{ include "jhanvi-trends.image" (dict "root" $root "name" $name "tag" $svc.image.tag) }}
+          imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $svc.port }}
+          env:
+            {{- include "jhanvi-trends.otelEnv" (dict "root" $root "name" $name) | nindent 12 }}
+            - name: PORT
+              value: {{ $svc.port | quote }}
+            {{- if $svc.database }}
+            - name: PGHOST
+              value: postgres
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: {{ $svc.database | quote }}
+            - name: PGUSER
+              value: {{ $root.Values.postgres.user | quote }}
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $root.Values.global.secretName }}, key: POSTGRES_PASSWORD } }
+            {{- end }}
+            {{- if $svc.mongodb }}
+            - name: MONGODB_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $root.Values.global.secretName }}, key: MONGODB_PASSWORD } }
+            - name: MONGODB_DATABASE
+              value: {{ $svc.mongodb | quote }}
+            - name: MONGODB_URI
+              value: "mongodb://{{ $root.Values.mongodb.user }}:$(MONGODB_PASSWORD)@mongodb:27017/?authSource=admin"
+            {{- end }}
+            {{- if $svc.kafka }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
+            - name: ORDER_EVENTS_TOPIC
+              value: order-events
+            {{- end }}
+            {{- range $svc.secretEnv }}
+            - name: {{ . }}
+              valueFrom: { secretKeyRef: { name: {{ $root.Values.global.secretName }}, key: {{ . }} } }
+            {{- end }}
+            {{- range $k, $v := $svc.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          startupProbe:
+            httpGet: { path: {{ $svc.probes.liveness }}, port: http }
+            periodSeconds: 5
+            failureThreshold: {{ $svc.probes.startupFailureThreshold | default 24 }}
+          livenessProbe:
+            httpGet: { path: {{ $svc.probes.liveness }}, port: http }
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: {{ $svc.probes.readiness }}, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "jhanvi-trends.labels" $root | nindent 4 }}
+    {{- include "jhanvi-trends.selector" $name | nindent 4 }}
+spec:
+  selector:
+    {{- include "jhanvi-trends.selector" $name | nindent 4 }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+{{- if $root.Values.monitoring.serviceMonitors }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "jhanvi-trends.labels" $root | nindent 4 }}
+spec:
+  jobLabel: app.kubernetes.io/name
+  selector:
+    matchLabels:
+      {{- include "jhanvi-trends.selector" $name | nindent 6 }}
+  endpoints:
+    - port: http
+      path: {{ $svc.metricsPath }}
+      interval: 15s
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          targetLabel: node
+{{- end }}
+{{- if and $svc.hpa $svc.hpa.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "jhanvi-trends.labels" $root | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ $svc.hpa.minReplicas }}
+  maxReplicas: {{ $svc.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: {{ $svc.hpa.cpu }} }
+{{- end }}
+{{- if or (gt (int ($svc.replicas | default 1)) 1) (and $svc.hpa $svc.hpa.enabled) }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "jhanvi-trends.labels" $root | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "jhanvi-trends.selector" $name | nindent 6 }}
+{{- end }}
+{{- end }}

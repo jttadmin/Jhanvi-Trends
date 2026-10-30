@@ -1,0 +1,67 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jhanvi-trends
+  labels:
+    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - {{- with .Values.ingress.host }}
+      host: {{ . }}
+      {{- end }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port: { name: http }
+{{- end }}
+{{- if .Values.loadgen.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  labels:
+    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.selector" "loadgen" | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "jhanvi-trends.selector" "loadgen" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "jhanvi-trends.selector" "loadgen" | nindent 8 }}
+    spec:
+      {{- include "jhanvi-trends.pullSecrets" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: loadgen
+          image: {{ include "jhanvi-trends.image" (dict "root" . "name" "loadgen" "tag" .Values.loadgen.image.tag) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          env:
+            - { name: LOCUST_HOST, value: "http://frontend:8080" }
+            - { name: LOCUST_USERS, value: {{ .Values.loadgen.users | quote }} }
+            - { name: LOCUST_SPAWN_RATE, value: {{ .Values.loadgen.spawnRate | quote }} }
+          resources:
+            {{- toYaml .Values.loadgen.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+{{- end }}

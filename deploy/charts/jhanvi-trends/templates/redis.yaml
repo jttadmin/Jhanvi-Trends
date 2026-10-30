@@ -1,0 +1,90 @@
+{{- if .Values.redis.enabled }}
+{{- $r := .Values.redis }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.selector" "redis" | nindent 4 }}
+spec:
+  selector:
+    {{- include "jhanvi-trends.selector" "redis" | nindent 4 }}
+  ports:
+    - { name: redis, port: 6379, targetPort: redis }
+    - { name: metrics, port: 9121, targetPort: metrics }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  labels:
+    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.selector" "redis" | nindent 4 }}
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "jhanvi-trends.selector" "redis" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "jhanvi-trends.selector" "redis" | nindent 8 }}
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: redis
+          image: {{ $r.image }}
+          args: ["--appendonly", "yes", "--maxmemory", "200mb", "--maxmemory-policy", "allkeys-lru"]
+          ports:
+            - { name: redis, containerPort: 6379 }
+          readinessProbe:
+            exec: { command: [valkey-cli, ping] }
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: redis }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml $r.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /data }
+        - name: exporter
+          image: {{ $r.exporter.image }}
+          ports:
+            - { name: metrics, containerPort: 9121 }
+          env:
+            - { name: REDIS_ADDR, value: "redis://localhost:6379" }
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 64Mi }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with $r.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $r.storage }}
+{{- if .Values.monitoring.serviceMonitors }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis
+  labels:
+    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+spec:
+  jobLabel: app.kubernetes.io/name
+  selector:
+    matchLabels:
+      {{- include "jhanvi-trends.selector" "redis" | nindent 6 }}
+  endpoints:
+    - { port: metrics, interval: 30s }
+{{- end }}
+{{- end }}

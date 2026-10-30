@@ -1,0 +1,24 @@
+# Argo CD install values (helm install argocd argo/argo-cd -n argocd -f this file).
+configs:
+  params:
+    # Traefik terminates HTTP; Argo CD serves plain HTTP behind it.
+    server.insecure: true
+  cm:
+    # Let parent apps wait for child Applications to be Healthy (makes sync-waves meaningful).
+    resource.customizations.health.argoproj.io_Application: |
+      hs = {}
+      hs.status = "Progressing"
+      hs.message = ""
+      if obj.status ~= nil and obj.status.health ~= nil then
+        hs.status = obj.status.health.status
+        if obj.status.health.message ~= nil then
+          hs.message = obj.status.health.message
+        end
+      end
+      return hs
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    # Set to argocd.<NODE_EXTERNAL_IP>.nip.io
+    hostname: argocd.CHANGE_ME_IP.nip.io

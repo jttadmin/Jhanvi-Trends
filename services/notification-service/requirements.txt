@@ -1,0 +1,4 @@
+kafka-python==3.0.12
+prometheus-client==0.26.0
+opentelemetry-distro==0.66b2
+opentelemetry-exporter-otlp==1.45.2

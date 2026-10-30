@@ -1,0 +1,138 @@
+# kube-prometheus-stack: Prometheus, Alertmanager, Grafana, node-exporter, kube-state-metrics.
+fullnameOverride: kps
+
+# kubeadm binds controller-manager, scheduler and etcd metrics to 127.0.0.1, so these
+# targets would show as down. See README "Control-plane metrics" to enable them.
+kubeControllerManager: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeEtcd: { enabled: false }
+kubeProxy: { enabled: true }
+
+defaultRules:
+  rules:
+    etcd: false
+    kubeControllerManager: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+
+prometheus:
+  prometheusSpec:
+    # Pick up ServiceMonitors/PrometheusRules from every namespace without a release label.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    # Tempo's metrics-generator remote-writes service-graph and span metrics here.
+    enableRemoteWriteReceiver: true
+    enableFeatures: [exemplar-storage]
+    retention: 7d
+    retentionSize: 18GB
+    resources:
+      requests: { cpu: 200m, memory: 1Gi }
+      limits: { memory: 3Gi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: { storage: 20Gi }
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: { storage: 2Gi }
+  # Add a Slack/email receiver here; alerts are visible in Grafana > Alerting meanwhile.
+  config:
+    route:
+      group_by: [alertname, namespace, job]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: "null"
+      routes:
+        - matchers: ['alertname = "Watchdog"']
+          receiver: "null"
+    receivers:
+      - name: "null"
+
+grafana:
+  # Admin user/password come from this Secret (created by scripts/bootstrap.sh).
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  persistence:
+    enabled: true
+    size: 2Gi
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    # Set to grafana.<NODE_EXTERNAL_IP>.nip.io
+    hosts: [grafana.CHANGE_ME_IP.nip.io]
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+  grafana.ini:
+    feature_toggles:
+      enable: traceToMetrics
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      url: http://loki.monitoring:3100
+      jsonData:
+        maxLines: 2000
+        # Every Jhanvi Trends log line carries "trace_id"; turn it into a link to Tempo.
+        derivedFields:
+          - name: TraceID
+            matcherType: regex
+            matcherRegex: '"trace_id":"(\w+)"'
+            url: "$${__value.raw}"
+            datasourceUid: tempo
+            urlDisplayLabel: Open trace
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      url: http://tempo.monitoring:3200
+      jsonData:
+        serviceMap:
+          datasourceUid: prometheus
+        nodeGraph:
+          enabled: true
+        search:
+          hide: false
+        tracesToLogsV2:
+          datasourceUid: loki
+          spanStartTimeShift: "-5m"
+          spanEndTimeShift: "5m"
+          filterByTraceID: true
+          customQuery: true
+          query: '{service_name="$${__span.tags["service.name"]}"} |= "$${__trace.traceId}"'
+        tracesToMetrics:
+          datasourceUid: prometheus
+          spanStartTimeShift: "-5m"
+          spanEndTimeShift: "5m"
+          tags:
+            - { key: service.name, value: service }
+          queries:
+            - name: Request rate
+              query: 'sum(rate(traces_spanmetrics_calls_total{$$__tags}[5m]))'
+            - name: Error rate
+              query: 'sum(rate(traces_spanmetrics_calls_total{$$__tags, status_code="STATUS_CODE_ERROR"}[5m]))'
+        lokiSearch:
+          datasourceUid: loki
+
+kube-state-metrics:
+  metricLabelsAllowlist:
+    - pods=[app.kubernetes.io/name,app.kubernetes.io/part-of]
+    - deployments=[app.kubernetes.io/name,app.kubernetes.io/part-of]

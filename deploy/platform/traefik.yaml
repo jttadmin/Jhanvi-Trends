@@ -1,0 +1,33 @@
+# Traefik ingress controller (ingress-nginx is retired). kubeadm on GCE has no cloud
+# LoadBalancer, so Traefik is exposed on NodePorts 30080 (HTTP) / 30443 (HTTPS) on every node.
+# Open them with the GCE firewall rule in the README, or put a GCP load balancer in front.
+deployment:
+  replicas: 2
+
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+
+providers:
+  kubernetesIngress:
+    enabled: true
+  kubernetesCRD:
+    enabled: true
+
+service:
+  type: NodePort
+
+ports:
+  web:
+    nodePort: 30080
+  websecure:
+    nodePort: 30443
+
+metrics:
+  prometheus:
+    serviceMonitor:
+      enabled: true
+
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits: { memory: 256Mi }

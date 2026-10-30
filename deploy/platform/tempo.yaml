@@ -1,0 +1,38 @@
+# Tempo (single binary). The metrics-generator turns spans into RED metrics and the
+# service graph and remote-writes them into Prometheus (Grafana > Explore > Tempo > Service graph).
+tempo:
+  retention: 72h
+  reportingEnabled: false
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: http://kps-prometheus.monitoring:9090/api/v1/write
+    processor:
+      service_graphs:
+        dimensions: [service.namespace]
+      span_metrics:
+        dimensions: [service.namespace, http.route]
+        enable_target_info: true
+    registry:
+      external_labels:
+        source: tempo
+  overrides:
+    defaults:
+      metrics_generator:
+        processors: [service-graphs, span-metrics]
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+  resources:
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { memory: 2Gi }
+
+persistence:
+  enabled: true
+  size: 20Gi
+
+serviceMonitor:
+  enabled: true

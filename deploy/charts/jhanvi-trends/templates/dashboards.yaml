@@ -1,0 +1,18 @@
+{{- if .Values.monitoring.grafanaDashboards }}
+{{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
+---
+# Picked up by the Grafana dashboard sidecar (kube-prometheus-stack, label grafana_dashboard=1).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-{{ base $path | trimSuffix ".json" }}
+  labels:
+    grafana_dashboard: "1"
+    {{- include "jhanvi-trends.labels" $ | nindent 4 }}
+  annotations:
+    grafana_folder: Jhanvi Trends
+data:
+  {{ base $path }}: |-
+    {{- $.Files.Get $path | nindent 4 }}
+{{- end }}
+{{- end }}

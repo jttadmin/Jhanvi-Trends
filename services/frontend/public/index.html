@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jhanvi Trends — Fashion, home &amp; more</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 2 29 9.5v13L16 30 3 22.5v-13z' fill='%235eead4'/><path d='M11 13h10l-1.2 9h-7.6zM13 13a3 3 0 0 1 6 0' fill='none' stroke='%230f3d3e' stroke-width='2'/></svg>" />
+</head>
+<body>
+  <header class="topbar">
+    <a href="#/" class="logo" aria-label="Jhanvi Trends home">
+      <svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path d="M16 2 29 9.5v13L16 30 3 22.5v-13z" fill="currentColor"/><path d="M11 13h10l-1.2 9h-7.6zM13 13a3 3 0 0 1 6 0" fill="none" stroke="#0f3d3e" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span class="word">Jhanvi<span> Trends</span></span></a>
+    <form class="search" id="search-form">
+      <select id="search-cat" aria-label="Category"><option value="">All</option></select>
+      <input id="search-q" type="search" placeholder="Search Jhanvi Trends" aria-label="Search" />
+      <button type="submit" aria-label="Search">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M10 4a6 6 0 104.47 10l4.77 4.77 1.41-1.41L15.9 12.6A6 6 0 0010 4zm0 2a4 4 0 110 8 4 4 0 010-8z" fill="currentColor"/></svg>
+      </button>
+    </form>
+    <a class="nav-link" id="account-link" href="#/login"><small id="hello">Welcome</small><b id="account-label">Sign in</b></a>
+    <a class="nav-link" href="#/orders"><small>Track</small><b>My orders</b></a>
+    <a class="cart-link" href="#/cart" aria-label="Cart">
+      <span class="cart-count" id="cart-count">0</span>
+      <svg viewBox="0 0 40 32" width="40" height="32"><path d="M2 4h6l5 18h20l4-13H11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><circle cx="15" cy="27" r="2.5" fill="currentColor"/><circle cx="30" cy="27" r="2.5" fill="currentColor"/></svg>
+      <b>Cart</b>
+    </a>
+  </header>
+  <nav class="subnav" id="subnav"><a href="#/">All</a></nav>
+  <main id="app" class="app"></main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <footer class="footer">
+    <p>© 2026 Bhumaji Systems. Jhanvi Trends is a microservices demo store; all brands and products shown are fictional and nothing is for sale.</p>
+  </footer>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: jhanvi-trends
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  sources:
+    - repoURL: https://grafana-community.github.io/helm-charts
+      chart: tempo
+      targetRevision: 3.2.1
+      helm:
+        releaseName: tempo
+        valueFiles:
+          - $values/deploy/platform/tempo.yaml
+    - repoURL: https://github.com/jttadmin/jhanvi-trends.git
+      targetRevision: main
+      ref: values
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 5m }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
