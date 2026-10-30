@@ -157,12 +157,20 @@ spec:
   minReplicas: {{ $svc.hpa.minReplicas }}
   maxReplicas: {{ $svc.hpa.maxReplicas }}
   metrics:
+    # Percentages are of the pod's resource *requests* (values.yaml), as Kubernetes defines them.
     - type: Resource
       resource:
         name: cpu
         target: { type: Utilization, averageUtilization: {{ $svc.hpa.cpu }} }
+    {{- with $svc.hpa.memory }}
+    - type: Resource
+      resource:
+        name: memory
+        target: { type: Utilization, averageUtilization: {{ . }} }
+    {{- end }}
 {{- end }}
-{{- if or (gt (int ($svc.replicas | default 1)) 1) (and $svc.hpa $svc.hpa.enabled) }}
+{{- /* A PDB only helps with 2+ pods; with a single pod it would block node drains. */}}
+{{- if or (gt (int ($svc.replicas | default 1)) 1) (and $svc.hpa $svc.hpa.enabled (gt (int ($svc.hpa.minReplicas | default 1)) 1)) }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget

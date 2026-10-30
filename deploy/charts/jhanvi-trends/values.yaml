@@ -27,7 +27,8 @@ monitoring:
   prometheusRules: true
   grafanaDashboards: true
 # Every entry becomes a Deployment + Service (+ ServiceMonitor; HPA and PDB when replicas > 1 or hpa.enabled).
-# Currently 1 replica each to save memory on the e2-medium workers; set replicas: 2 for zero-downtime updates.
+# Each service runs 1 pod and autoscales (hpa) to more when average CPU or memory passes 70% of its requests.
+# With hpa.enabled the HPA owns the pod count and replicas is ignored; set hpa.enabled: false to pin replicas.
 services:
   frontend:
     image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
@@ -39,7 +40,7 @@ services:
     resources:
       requests: {cpu: 50m, memory: 96Mi}
       limits: {memory: 256Mi}
-    hpa: {enabled: false, minReplicas: 2, maxReplicas: 6, cpu: 70}
+    hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpu: 70, memory: 70}
     secretEnv: [JWT_SECRET]
     env:
       USER_SERVICE_URL: http://user-service:8080
@@ -57,7 +58,7 @@ services:
     resources:
       requests: {cpu: 50m, memory: 96Mi}
       limits: {memory: 256Mi}
-    hpa: {enabled: false}
+    hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpu: 70, memory: 70}
     database: users
     secretEnv: [JWT_SECRET]
     env:
@@ -72,7 +73,7 @@ services:
     resources:
       requests: {cpu: 50m, memory: 128Mi}
       limits: {memory: 384Mi}
-    hpa: {enabled: false, minReplicas: 2, maxReplicas: 5, cpu: 70}
+    hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpu: 70, memory: 70}
     mongodb: catalog # MongoDB database name
   cart-service:
     image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
@@ -83,7 +84,7 @@ services:
     resources:
       requests: {cpu: 25m, memory: 32Mi}
       limits: {memory: 128Mi}
-    hpa: {enabled: false}
+    hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpu: 70, memory: 70}
     env:
       REDIS_ADDR: redis:6379
   inventory-service:
@@ -95,7 +96,7 @@ services:
     resources:
       requests: {cpu: 25m, memory: 32Mi}
       limits: {memory: 128Mi}
-    hpa: {enabled: false}
+    hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpu: 70, memory: 70}
     database: inventory
   order-service:
     image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
@@ -111,7 +112,8 @@ services:
       # A larger CPU share makes the JVM start faster when the node is busy.
       requests: {cpu: 300m, memory: 384Mi}
       limits: {memory: 768Mi}
-    hpa: {enabled: false}
+    # Scales on CPU only: the JVM keeps the memory it takes, so memory says little about load.
+    hpa: {enabled: true, minReplicas: 1, maxReplicas: 2, cpu: 70}
     database: orders
     kafka: true
     env:
@@ -125,9 +127,9 @@ services:
     metricsPath: /metrics
     probes: {liveness: /healthz, readiness: /readyz}
     resources:
-      requests: {cpu: 25m, memory: 64Mi}
+      requests: {cpu: 50m, memory: 96Mi}
       limits: {memory: 192Mi}
-    hpa: {enabled: false}
+    hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpu: 70, memory: 70}
     env:
       PAYMENT_FAILURE_RATE: "0.05"
       PAYMENT_LATENCY_MS: "150"
@@ -139,9 +141,9 @@ services:
     # Only a metrics server listens on HTTP; probe that.
     probes: {liveness: /metrics, readiness: /metrics}
     resources:
-      requests: {cpu: 25m, memory: 64Mi}
+      requests: {cpu: 50m, memory: 96Mi}
       limits: {memory: 192Mi}
-    hpa: {enabled: false}
+    hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpu: 70, memory: 70}
     kafka: true
 # Synthetic traffic so dashboards are never empty. Set enabled=false in production.
 loadgen:
