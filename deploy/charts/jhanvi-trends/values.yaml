@@ -26,19 +26,20 @@ monitoring:
   serviceMonitors: true
   prometheusRules: true
   grafanaDashboards: true
-# Every entry becomes a Deployment + Service (+ ServiceMonitor, HPA, PDB).
+# Every entry becomes a Deployment + Service (+ ServiceMonitor; HPA and PDB when replicas > 1 or hpa.enabled).
+# Currently 1 replica each to save memory on the e2-medium workers; set replicas: 2 for zero-downtime updates.
 services:
   frontend:
     image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
     runAsUser: 1000 # numeric UID of the node user
-    replicas: 2
+    replicas: 1
     port: 8080
     metricsPath: /metrics
     probes: {liveness: /healthz, readiness: /readyz}
     resources:
       requests: {cpu: 50m, memory: 96Mi}
       limits: {memory: 256Mi}
-    hpa: {enabled: true, minReplicas: 2, maxReplicas: 6, cpu: 70}
+    hpa: {enabled: false, minReplicas: 2, maxReplicas: 6, cpu: 70}
     secretEnv: [JWT_SECRET]
     env:
       USER_SERVICE_URL: http://user-service:8080
@@ -49,7 +50,7 @@ services:
   user-service:
     image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
     runAsUser: 1000 # numeric UID of the node user
-    replicas: 2
+    replicas: 1
     port: 8080
     metricsPath: /metrics
     probes: {liveness: /healthz, readiness: /readyz}
@@ -64,18 +65,18 @@ services:
       ADMIN_EMAILS: srinivas.bdn@gmail.com
   catalog-service:
     image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
-    replicas: 2
+    replicas: 1
     port: 8080
     metricsPath: /metrics
     probes: {liveness: /healthz, readiness: /readyz}
     resources:
       requests: {cpu: 50m, memory: 128Mi}
       limits: {memory: 384Mi}
-    hpa: {enabled: true, minReplicas: 2, maxReplicas: 5, cpu: 70}
+    hpa: {enabled: false, minReplicas: 2, maxReplicas: 5, cpu: 70}
     mongodb: catalog # MongoDB database name
   cart-service:
     image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
-    replicas: 2
+    replicas: 1
     port: 8080
     metricsPath: /metrics
     probes: {liveness: /healthz, readiness: /readyz}
@@ -87,7 +88,7 @@ services:
       REDIS_ADDR: redis:6379
   inventory-service:
     image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
-    replicas: 2
+    replicas: 1
     port: 8080
     metricsPath: /metrics
     probes: {liveness: /healthz, readiness: /readyz}
@@ -98,7 +99,7 @@ services:
     database: inventory
   order-service:
     image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
-    replicas: 2
+    replicas: 1
     port: 8080
     metricsPath: /actuator/prometheus
     probes:
@@ -119,7 +120,7 @@ services:
   payment-service:
     image: {tag: 101471cff6d07b11ab2da196c1929b1175789880}
     runAsUser: 1000 # numeric UID of the node user
-    replicas: 2
+    replicas: 1
     port: 8080
     metricsPath: /metrics
     probes: {liveness: /healthz, readiness: /readyz}

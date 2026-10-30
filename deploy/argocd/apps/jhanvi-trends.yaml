@@ -26,8 +26,9 @@ spec:
       backoff: { duration: 15s, factor: 2, maxDuration: 5m }
     syncOptions:
       - CreateNamespace=true
-  # HPAs own the replica count of autoscaled Deployments.
-  ignoreDifferences:
-    - group: apps
-      kind: Deployment
-      jsonPointers: [/spec/replicas]
+  # Autoscaling is off (1 replica per service), so Argo CD manages replica counts.
+  # If you turn an HPA back on in values.yaml, restore this so Argo CD leaves its replica count alone:
+  # ignoreDifferences:
+  #   - group: apps
+  #     kind: Deployment
+  #     jsonPointers: [/spec/replicas]
