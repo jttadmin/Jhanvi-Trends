@@ -3,7 +3,7 @@
 
 global:
   # Images are pushed by GitHub Actions to Docker Hub: docker.io/<namespace>/jhanvi-trends-<service>.
-  imageRegistry: docker.io/CHANGE_ME_DOCKERHUB
+  imageRegistry: docker.io/jhanviadmin
   imagePrefix: jhanvi-trends-
   imagePullPolicy: IfNotPresent
   # e.g. [{name: dockerhub-pull}] for private Docker Hub repos or to avoid anonymous pull limits (see README)
@@ -16,7 +16,7 @@ ingress:
   enabled: true
   className: traefik
   # Set to shop.<NODE_EXTERNAL_IP>.nip.io (or your own DNS name).
-  host: shop.CHANGE_ME_IP.nip.io
+  host: shop.34.93.173.69.nip.io
   annotations: {}
   tls: []
 monitoring:
