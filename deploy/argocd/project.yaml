@@ -8,8 +8,6 @@ spec:
   sourceRepos:
     - https://github.com/jttadmin/jhanvi-trends.git
     - https://prometheus-community.github.io/helm-charts
-    - https://kubernetes-sigs.github.io/metrics-server/
-    - https://traefik.github.io/charts
     - https://grafana.github.io/helm-charts
     - https://grafana-community.github.io/helm-charts
     - https://open-telemetry.github.io/opentelemetry-helm-charts

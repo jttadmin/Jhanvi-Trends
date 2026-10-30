@@ -1,6 +1,0 @@
-# Needed for `kubectl top` and the HorizontalPodAutoscalers.
-# kubeadm kubelets use self-signed serving certs, hence --kubelet-insecure-tls.
-# (Better: enable serverTLSBootstrap on the kubelets and approve their CSRs, then drop this flag.)
-args:
-  - --kubelet-insecure-tls
-  - --kubelet-preferred-address-types=InternalIP,Hostname

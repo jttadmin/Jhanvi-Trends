@@ -63,10 +63,14 @@ if [[ -n "${DOCKERHUB_USER:-}" && -n "${DOCKERHUB_TOKEN:-}" ]]; then
 fi
 
 log "Argo CD"
-helm repo add argo https://argoproj.github.io/argo-helm >/dev/null
-helm repo update argo >/dev/null
-helm upgrade --install argocd argo/argo-cd -n argocd --version "$ARGOCD_CHART_VERSION" \
-  -f deploy/argocd/argocd-values.yaml --wait --timeout 10m
+if helm status argocd -n argocd >/dev/null 2>&1; then
+  echo "Argo CD is already installed - reusing it."
+else
+  helm repo add argo https://argoproj.github.io/argo-helm >/dev/null
+  helm repo update argo >/dev/null
+  helm upgrade --install argocd argo/argo-cd -n argocd --version "$ARGOCD_CHART_VERSION" \
+    -f deploy/argocd/argocd-values.yaml --wait --timeout 10m
+fi
 
 if [[ -n "${GIT_USER:-}" && -n "${GIT_TOKEN:-}" ]]; then
   repo_url=$(grep -m1 'repoURL: https://github.com' deploy/argocd/root.yaml | awk '{print $2}')
@@ -86,10 +90,10 @@ cat <<EOF
 Bootstrap complete. Argo CD now installs the platform and the app (10-15 min on first run):
   kubectl -n argocd get applications -w
 
-  Shop:    http://shop.${ip}.nip.io:30080
-  Grafana: http://grafana.${ip}.nip.io:30080   user: admin  password: kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d
-  Argo CD: http://argocd.${ip}.nip.io:30080    user: admin  password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+  Shop:    http://shop.${ip}.nip.io
+  Grafana: http://grafana.${ip}.nip.io   user: admin  password: kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d
+  Argo CD: http://argocd.${ip}.nip.io    user: admin  password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
 
 If those don't load, open the NodePorts in GCE:
-  gcloud compute firewall-rules create jhanvi-trends-ingress --allow tcp:30080,tcp:30443 --target-tags <your-node-network-tag> --source-ranges <your-ip>/32
+  gcloud compute firewall-rules create jhanvi-trends-ingress --allow tcp:80,tcp:443 --target-tags <your-node-network-tag> --source-ranges <your-ip>/32
 EOF

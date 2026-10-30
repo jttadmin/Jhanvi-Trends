@@ -80,9 +80,8 @@ else
   warn "no default StorageClass yet (bootstrap.sh installs local-path-provisioner)"
 fi
 
-section "Ports"
-used=$(kubectl get svc -A -o jsonpath='{range .items[*]}{range .spec.ports[*]}{.nodePort}{"\n"}{end}{end}' | grep -E '^(30080|30443)$' || true)
-[ -z "$used" ] && pass "NodePorts 30080/30443 are free" || warn "NodePort(s) already used: $used (change them in deploy/platform/traefik.yaml)"
+section "Ingress"
+if kubectl get ingressclass traefik >/dev/null 2>&1; then pass "Traefik ingress class present"; else fail "no traefik IngressClass found"; fi
 
 section "Repo configuration"
 if grep -rq CHANGE_ME deploy 2>/dev/null; then warn "placeholders remain - run ./scripts/configure.sh <github-owner> <dockerhub-namespace> <node-external-ip>"; else pass "placeholders filled in"; fi

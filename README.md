@@ -5,7 +5,7 @@ microservices, deployed with Helm + Argo CD, and wired for metrics, logs and tra
 
 ```mermaid
 flowchart LR
-  user((Browser)) -->|NodePort 30080| traefik[Traefik ingress]
+  user((Browser)) -->|port 80| traefik[Traefik ingress]
   traefik --> fe[frontend / BFF<br/>Node.js]
   fe --> us[user-service<br/>Node.js] --> pg[(PostgreSQL)]
   fe --> cat[catalog-service<br/>Python FastAPI] --> mongo[(MongoDB)]
@@ -98,18 +98,18 @@ Argo CD syncs in waves: kube-prometheus-stack + metrics-server → Traefik, Loki
 
 ```bash
 gcloud compute firewall-rules create jhanvi-trends-ingress \
-  --network <your-vpc> --allow tcp:30080,tcp:30443 \
+  --network <your-vpc> --allow tcp:80,tcp:443 \
   --target-tags <worker-network-tag> --source-ranges <your-public-ip>/32
 ```
 
 | | URL | Login |
 |---|---|---|
-| Shop | `http://shop.<IP>.nip.io:30080` | register in the UI |
-| Grafana | `http://grafana.<IP>.nip.io:30080` | `admin` / `kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' \| base64 -d` |
-| Argo CD | `http://argocd.<IP>.nip.io:30080` | `admin` / `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' \| base64 -d` |
+| Shop | `http://shop.<IP>.nip.io` | register in the UI |
+| Grafana | `http://grafana.<IP>.nip.io` | `admin` / `kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' \| base64 -d` |
+| Argo CD | `http://argocd.<IP>.nip.io` | `admin` / `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' \| base64 -d` |
 
 nip.io resolves `anything.<IP>.nip.io` to `<IP>`, so no DNS setup is needed. For a real domain + HTTPS,
-put a GCP HTTP(S) load balancer (instance group on port 30080) in front, or add cert-manager.
+put a GCP HTTP(S) load balancer (instance group on port 80) in front, or add cert-manager.
 
 ## Things to try once it's running
 

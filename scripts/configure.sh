@@ -26,10 +26,10 @@ done
 cat <<EOF
 
 Done. Images: docker.io/${hub_lc}/jhanvi-trends-<service>
-URLs once deployed (NodePort 30080 on any node):
-  Shop:    http://shop.${ip}.nip.io:30080
-  Grafana: http://grafana.${ip}.nip.io:30080
-  Argo CD: http://argocd.${ip}.nip.io:30080
+URLs once deployed (the external IP of the node running Traefik):
+  Shop:    http://shop.${ip}.nip.io
+  Grafana: http://grafana.${ip}.nip.io
+  Argo CD: http://argocd.${ip}.nip.io
 
 Next: git add -A && git commit -m "Configure for my cluster" && git push
 EOF
