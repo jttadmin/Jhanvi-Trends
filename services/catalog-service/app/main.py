@@ -86,13 +86,18 @@ def seed_photos() -> None:
         path = PHOTO_DIR / f"{p[0]}.jpg"
         if not path.is_file():
             continue
+        doc = products.find_one({"_id": p[0], "name": p[1], "seedPhoto": {"$ne": PHOTO_SET}})
+        if not doc:
+            continue
+        current = doc.get("imageVersion")
+        if current is None and "seedPhoto" not in doc:
+            unchanged = {"imageVersion": {"$exists": False}, "seedPhoto": {"$exists": False}}  # never had a photo
+        elif current is not None and current == doc.get("seedImageVersion"):
+            unchanged = {"imageVersion": current}  # still shows an older bundled photo
+        else:
+            continue  # admin uploaded or removed a photo: leave it alone
         claimed = products.update_one(
-            {"_id": p[0], "name": p[1], "seedPhoto": {"$ne": PHOTO_SET}, "$or": [
-                # never had a photo
-                {"imageVersion": {"$exists": False}, "seedPhoto": {"$exists": False}},
-                # still shows an older bundled photo (not one the admin uploaded)
-                {"$expr": {"$eq": ["$imageVersion", "$seedImageVersion"]}, "seedImageVersion": {"$exists": True}},
-            ]},
+            {"_id": p[0], "name": p[1], "seedPhoto": doc.get("seedPhoto"), **unchanged},
             {"$set": {"seedPhoto": PHOTO_SET}},
         )
         if claimed.modified_count != 1:
