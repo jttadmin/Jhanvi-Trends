@@ -116,7 +116,14 @@ def hide_logo(img: Image.Image, box: list[int]) -> None:
     add matching grain so the patch keeps the material's texture, then soften the edges."""
     import random
     x0, y0, x1, y1 = box[:4]
-    vertical = len(box) > 4 and box[4] == "v"
+    mode = box[4] if len(box) > 4 else ""
+    if mode == "b":  # feathered blur, for a logo on something in motion
+        blurred = img.filter(ImageFilter.GaussianBlur(10))
+        mask = Image.new("L", img.size, 0)
+        ImageDraw.Draw(mask).ellipse((x0, y0, x1, y1), fill=255)
+        img.paste(blurred, (0, 0), mask.filter(ImageFilter.GaussianBlur(12)))
+        return
+    vertical = mode == "v"
     ring = [img.getpixel((x, y1 + 2)) for x in range(x0 - 3, x1 + 3)] + \
            [img.getpixel((x, y)) for y in range(y0, y1 + 3) for x in (x0 - 3, x1 + 2)]
     ring.sort(key=sum)
@@ -219,7 +226,7 @@ def finalize() -> None:
             sys.exit(f"product {pid}: {p['pick']} is not in candidates.json")
         src = c["raw"] + "?w=1800&fm=jpg&q=85" if c["key"][0] == "u" else c["raw"]
         img = square(Image.open(io.BytesIO(get(src, accept_json=False))), p.get("x", .5), p.get("y", .5), p.get("zoom", 1.0))
-        for box in p.get("blur", []):  # hide small third-party logos: [x0, y0, x1, y1(, "v")] on the 900px square
+        for box in p.get("blur", []):  # hide small third-party logos: [x0, y0, x1, y1(, "v"|"b")] on the 900px square
             hide_logo(img, box)
         img.save(OUT / f"{pid}.jpg", quality=82, optimize=True, progressive=True)
         picked[pid] = c
