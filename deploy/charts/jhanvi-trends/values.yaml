@@ -65,7 +65,7 @@ services:
       # Accounts with these emails get the admin panel (comma-separated). Log out and in again after changing.
       ADMIN_EMAILS: srinivas.bdn@gmail.com
   catalog-service:
-    image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
+    image: {tag: 25bd7867aea41f0e479a8f33b500c501e855c7b8}
     replicas: 1
     port: 8080
     metricsPath: /metrics
