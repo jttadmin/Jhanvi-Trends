@@ -18,13 +18,13 @@
   "alt": "White power adapter with metal prongs on wood"
  },
  "3": {
-  "key": "u:photo-1570485071395-29b575ea3b4e",
-  "thumb": "https://images.unsplash.com/photo-1570485071395-29b575ea3b4e?w=400&fm=jpg&q=70",
-  "raw": "https://images.unsplash.com/photo-1570485071395-29b575ea3b4e",
-  "page": "https://images.unsplash.com/photo-1570485071395-29b575ea3b4e",
+  "key": "u:photo-1666771410140-0573b232426e",
+  "thumb": "https://images.unsplash.com/photo-1666771410140-0573b232426e?w=400&fm=jpg&q=70",
+  "raw": "https://images.unsplash.com/photo-1666771410140-0573b232426e",
+  "page": "https://images.unsplash.com/photo-1666771410140-0573b232426e",
   "author": "",
   "license": "Unsplash License",
-  "alt": "flat screen monitor"
+  "alt": "a white monitor with a black stand"
  },
  "4": {
   "key": "u:photo-1660844817855-3ecc7ef21f12",
@@ -134,6 +134,15 @@
   "license": "Unsplash License",
   "alt": "assorted color folded shirts"
  },
+ "16": {
+  "key": "u:photo-1726133731483-d4b8bcabeb43",
+  "thumb": "https://images.unsplash.com/photo-1726133731483-d4b8bcabeb43?w=400&fm=jpg&q=70",
+  "raw": "https://images.unsplash.com/photo-1726133731483-d4b8bcabeb43",
+  "page": "https://images.unsplash.com/photo-1726133731483-d4b8bcabeb43",
+  "author": "",
+  "license": "Unsplash License",
+  "alt": ""
+ },
  "17": {
   "key": "u:photo-1553062407-98eeb64c6a62",
   "thumb": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&fm=jpg&q=70",
@@ -169,6 +178,15 @@
   "author": "",
   "license": "Unsplash License",
   "alt": "dumbbells on table"
+ },
+ "21": {
+  "key": "u:photo-1643294358128-0d2da3b4ea7a",
+  "thumb": "https://images.unsplash.com/photo-1643294358128-0d2da3b4ea7a?w=400&fm=jpg&q=70",
+  "raw": "https://images.unsplash.com/photo-1643294358128-0d2da3b4ea7a",
+  "page": "https://images.unsplash.com/photo-1643294358128-0d2da3b4ea7a",
+  "author": "",
+  "license": "Unsplash License",
+  "alt": ""
  },
  "22": {
   "key": "u:photo-1575364289437-fb1479d52732",
