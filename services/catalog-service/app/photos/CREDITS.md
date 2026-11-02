@@ -9,7 +9,7 @@ the photos only illustrate the product type.
 |---|---|---|---|
 | 1 | [photo-1655560378428-7605bda51749](https://images.unsplash.com/photo-1655560378428-7605bda51749) | Unsplash contributor | Unsplash License |
 | 2 | [photo-1770417999317-64fb254c9e3a](https://images.unsplash.com/photo-1770417999317-64fb254c9e3a) | Unsplash contributor | Unsplash License |
-| 3 | [photo-1666771410140-0573b232426e](https://images.unsplash.com/photo-1666771410140-0573b232426e) | Unsplash contributor | Unsplash License |
+| 3 | [photo-1570485071395-29b575ea3b4e](https://images.unsplash.com/photo-1570485071395-29b575ea3b4e) | Unsplash contributor | Unsplash License |
 | 4 | [photo-1660844817855-3ecc7ef21f12](https://images.unsplash.com/photo-1660844817855-3ecc7ef21f12) | Unsplash contributor | Unsplash License |
 | 5 | [photo-1589578228447-e1a4e481c6c8](https://images.unsplash.com/photo-1589578228447-e1a4e481c6c8) | Unsplash contributor | Unsplash License |
 | 6 | [photo-1760708825913-65a50b3dc39b](https://images.unsplash.com/photo-1760708825913-65a50b3dc39b) | Unsplash contributor | Unsplash License |
