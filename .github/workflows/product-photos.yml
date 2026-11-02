@@ -5,7 +5,7 @@ name: product-photos
 on:
   push:
     branches: [product-photos]
-    paths: ["scripts/product-photos/queries.json", "scripts/product-photos/picks.json", "scripts/product-photos/photos.py", ".github/workflows/product-photos.yml"]
+    paths: ["scripts/product-photos/queries.json", "scripts/product-photos/seeds.json", "scripts/product-photos/picks.json", "scripts/product-photos/photos.py", ".github/workflows/product-photos.yml"]
   workflow_dispatch:
 
 concurrency:

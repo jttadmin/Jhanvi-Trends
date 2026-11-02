@@ -100,8 +100,20 @@ def probe() -> None:
         print(f"probe {name}: {'ok' if ok else 'UNAVAILABLE'} in {time.time() - t:.1f}s", flush=True)
 
 
+def from_seeds(seeds: list[dict]) -> list[dict]:
+    """Candidates chosen by hand (seeds.json): free Unsplash photos served from the image CDN."""
+    out = []
+    for sd in seeds:
+        base = f"https://images.unsplash.com/{sd['id']}"
+        out.append({"key": f"u:{sd['id']}", "thumb": base + "?w=400&fm=jpg&q=70", "raw": base,
+                    "page": base, "author": "", "license": "Unsplash License", "alt": sd.get("alt", "")})
+    return out
+
+
 def candidates() -> None:
-    probe()
+    seeds = json.loads((HERE / "seeds.json").read_text()) if (HERE / "seeds.json").exists() else {}
+    if not seeds:
+        probe()
     queries = json.loads((HERE / "queries.json").read_text())
     picks = json.loads((HERE / "picks.json").read_text()) if (HERE / "picks.json").exists() else {}
     todo = [pid for pid in queries if pid not in picks]
@@ -110,6 +122,10 @@ def candidates() -> None:
         old.unlink()
     allc: dict[str, list[dict]] = {}
     for pid in todo:
+        if pid in seeds:
+            allc[pid] = from_seeds(seeds[pid])[:12]
+            print(f"product {pid}: {len(allc[pid])} seeded candidates", flush=True)
+            continue
         seen, found = set(), []
         for q in queries[pid]:
             for c in (unsplash(q, 6) if SOURCES["unsplash"] else []) + (openverse(q, 2) if SOURCES["openverse"] else []):
