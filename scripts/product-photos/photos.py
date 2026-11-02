@@ -9,12 +9,13 @@ Runs in GitHub Actions (see .github/workflows/product-photos.yml), not in the cl
   finalize    Download every photo in picks.json, crop it to a 900x900 square and write it to
               services/catalog-service/app/photos/<id>.jpg, plus CREDITS.md.
 
-picks.json:  {"1": {"pick": "u:abc123", "y": 0.5, "x": 0.5, "zoom": 1.0}, ...}
+picks.json:  {"1": {"pick": 3 (sheet index) or "u:photo-...", "y": 0.5, "x": 0.5, "zoom": 1.0}, ...}
              pick is a candidate key from candidates/candidates.json. x/y (0..1) move the
              square crop's centre; zoom > 1 crops tighter.
 """
 import io
 import json
+import re
 import sys
 import time
 import urllib.parse
@@ -27,15 +28,15 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 OUT = ROOT / "services" / "catalog-service" / "app" / "photos"
 CAND = HERE / "candidates"
-UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) jhanvi-trends-photo-picker", "Accept": "application/json"}
+UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", "Accept": "application/json"}
 SIZE = 900
 
 
-def get(url: str, accept_json: bool = True, tries: int = 2) -> bytes:
+def get(url: str, accept_json: bool = True, tries: int = 2, timeout: int = 20) -> bytes:
     for i in range(tries):
         try:
             req = urllib.request.Request(url, headers=UA if accept_json else {"User-Agent": UA["User-Agent"]})
-            with urllib.request.urlopen(req, timeout=15) as r:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.read()
         except Exception as exc:  # noqa: BLE001
             print(f"  ! {url[:90]} -> {exc}", flush=True)
@@ -44,21 +45,21 @@ def get(url: str, accept_json: bool = True, tries: int = 2) -> bytes:
 
 
 def unsplash(query: str, n: int) -> list[dict]:
-    url = "https://unsplash.com/napi/search/photos?" + urllib.parse.urlencode({"query": query, "per_page": 20})
+    """Free photos from Unsplash's public search page. Unsplash+ (paid) photos are served from
+    plus.unsplash.com/premium_photo-..., so matching only images.unsplash.com/photo-... skips them."""
+    url = "https://unsplash.com/s/photos/" + urllib.parse.quote(query.replace(" ", "-"))
     try:
-        data = json.loads(get(url))
+        html = get(url, accept_json=False).decode("utf-8", "replace")
     except Exception:  # noqa: BLE001
         return []
-    out = []
-    for r in data.get("results", []):
-        if r.get("premium") or r.get("plus") or "plus.unsplash.com" in r.get("urls", {}).get("raw", ""):
-            continue  # Unsplash+ is a paid licence
-        out.append({
-            "key": f"u:{r['id']}", "thumb": r["urls"]["small"], "raw": r["urls"]["raw"],
-            "page": r.get("links", {}).get("html", f"https://unsplash.com/photos/{r['id']}"),
-            "author": r.get("user", {}).get("name", ""), "license": "Unsplash License",
-            "alt": r.get("alt_description") or "",
-        })
+    out, seen = [], set()
+    for pid in re.findall(r"https://images\.unsplash\.com/(photo-\d+-[0-9a-f]+)", html):
+        if pid in seen:
+            continue
+        seen.add(pid)
+        base = f"https://images.unsplash.com/{pid}"
+        out.append({"key": f"u:{pid}", "thumb": base + "?w=400&fm=jpg&q=70", "raw": base,
+                    "page": base, "author": "", "license": "Unsplash License", "alt": ""})
         if len(out) >= n:
             break
     return out
@@ -68,7 +69,7 @@ def openverse(query: str, n: int) -> list[dict]:
     url = "https://api.openverse.org/v1/images/?" + urllib.parse.urlencode(
         {"q": query, "license": "cc0,pdm", "page_size": n, "mature": "false"})
     try:
-        data = json.loads(get(url))
+        data = json.loads(get(url, timeout=45))
     except Exception:  # noqa: BLE001
         return []
     return [{
@@ -148,18 +149,22 @@ def candidates() -> None:
 def finalize() -> None:
     picks = json.loads((HERE / "picks.json").read_text())
     known: dict[str, dict] = {}
+    cands = json.loads((CAND / "candidates.json").read_text()) if (CAND / "candidates.json").exists() else {}
     for f in [CAND / "candidates.json", HERE / "picked.json"]:
         if f.exists():
             for lst in json.loads(f.read_text()).values():
                 for c in (lst if isinstance(lst, list) else [lst]):
                     known[c["key"]] = c
+    for pid, p in picks.items():
+        if isinstance(p.get("pick"), int):  # index shown on the contact sheet
+            p["pick"] = cands[pid][p["pick"]]["key"]
     OUT.mkdir(parents=True, exist_ok=True)
     picked: dict[str, dict] = {}
     for pid, p in sorted(picks.items(), key=lambda kv: int(kv[0])):
         c = known.get(p["pick"])
         if not c:
             sys.exit(f"product {pid}: {p['pick']} is not in candidates.json")
-        src = c["raw"] + ("&" if "?" in c["raw"] else "?") + "w=1800&fm=jpg&q=85" if c["key"][0] == "u" else c["raw"]
+        src = c["raw"] + "?w=1800&fm=jpg&q=85" if c["key"][0] == "u" else c["raw"]
         img = square(Image.open(io.BytesIO(get(src, accept_json=False))), p.get("x", .5), p.get("y", .5), p.get("zoom", 1.0))
         img.save(OUT / f"{pid}.jpg", quality=82, optimize=True, progressive=True)
         picked[pid] = c
@@ -172,7 +177,7 @@ def finalize() -> None:
              "the photos only illustrate the product type.", "",
              "| Product | Photo | Author | License |", "|---|---|---|---|"]
     for pid, c in picked.items():
-        lines.append(f"| {pid} | [{c['key'][2:]}]({c['page']}) | {c['author']} | {c['license']} |")
+        lines.append(f"| {pid} | [{c['key'][2:]}]({c['page']}) | {c['author'] or 'Unsplash contributor'} | {c['license']} |")
     (OUT / "CREDITS.md").write_text("\n".join(lines) + "\n")
 
 
