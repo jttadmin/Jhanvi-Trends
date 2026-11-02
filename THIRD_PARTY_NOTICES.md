@@ -43,6 +43,10 @@ Last reviewed: October 2026 (Node and Python dependency trees scanned with licen
 ## Content
 
 - Product names, brands, book titles, descriptions and the Jhanvi Trends logo were written for this project and are fictional.
-- Product images are SVGs generated at runtime by catalog-service; the emoji in them are Unicode characters drawn by
-  the viewer's own system font, so no emoji artwork is bundled.
-- No web fonts, stock photos or icon packs are included.
+- Photos of the seeded demo products (`services/catalog-service/app/photos/`) are free photos from Unsplash under the
+  [Unsplash License](https://unsplash.com/license): free for commercial and non-commercial use, no permission or
+  attribution needed. Paid Unsplash+ photos are excluded. They were reviewed to avoid visible brand logos; each photo
+  only illustrates the product type, and every source is listed in `photos/CREDITS.md`.
+- Products without a photo (e.g. ones added in the admin panel) fall back to an SVG generated at runtime by
+  catalog-service; the emoji in it are drawn by the viewer's own system font, so no emoji artwork is bundled.
+- No web fonts or icon packs are included.

@@ -1,0 +1,43 @@
+# Finds and prepares free-license product photos for the seeded catalog (scripts/product-photos).
+# Runs only on the product-photos branch and commits its results back to that branch.
+name: product-photos
+
+on:
+  push:
+    branches: [product-photos]
+    paths: ["scripts/product-photos/queries.json", "scripts/product-photos/seeds.json", "scripts/product-photos/picks.json", "scripts/product-photos/photos.py", ".github/workflows/product-photos.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: product-photos
+  cancel-in-progress: true
+
+jobs:
+  photos:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: pip install pillow==12.0.0
+      - name: Candidates for products without a pick
+        timeout-minutes: 15
+        run: python scripts/product-photos/photos.py candidates 2>&1 | tee scripts/product-photos/candidates.log
+      - name: Finalize picked photos
+        run: |
+          if [ -f scripts/product-photos/picks.json ]; then
+            python scripts/product-photos/photos.py finalize 2>&1 | tee scripts/product-photos/finalize.log
+            exit "${PIPESTATUS[0]}"
+          fi
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A scripts/product-photos
+          if [ -d services/catalog-service/app/photos ]; then git add -A services/catalog-service/app/photos; fi
+          git diff --cached --quiet || git commit -m "product-photos: workflow results"
+          git push
