@@ -24,6 +24,7 @@ jobs:
           python-version: "3.13"
       - run: pip install pillow==12.0.0
       - name: Candidates for products without a pick
+        timeout-minutes: 15
         run: python scripts/product-photos/photos.py candidates 2>&1 | tee scripts/product-photos/candidates.log
       - name: Finalize picked photos
         run: |

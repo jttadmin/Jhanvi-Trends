@@ -31,15 +31,15 @@ UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) jhanvi-trends-photo-picker"
 SIZE = 900
 
 
-def get(url: str, accept_json: bool = True, tries: int = 3) -> bytes:
+def get(url: str, accept_json: bool = True, tries: int = 2) -> bytes:
     for i in range(tries):
         try:
             req = urllib.request.Request(url, headers=UA if accept_json else {"User-Agent": UA["User-Agent"]})
-            with urllib.request.urlopen(req, timeout=40) as r:
+            with urllib.request.urlopen(req, timeout=15) as r:
                 return r.read()
         except Exception as exc:  # noqa: BLE001
             print(f"  ! {url[:90]} -> {exc}", flush=True)
-            time.sleep(2 * (i + 1))
+            time.sleep(1)
     raise RuntimeError(f"failed: {url}")
 
 
@@ -88,7 +88,19 @@ def square(img: Image.Image, x: float = 0.5, y: float = 0.5, zoom: float = 1.0, 
     return img.crop((left, top, left + side, top + side)).resize((size, size), Image.LANCZOS)
 
 
+SOURCES = {"unsplash": True, "openverse": True}
+
+
+def probe() -> None:
+    for name, fn in (("unsplash", unsplash), ("openverse", openverse)):
+        t = time.time()
+        ok = bool(fn("coffee mug", 1))
+        SOURCES[name] = ok
+        print(f"probe {name}: {'ok' if ok else 'UNAVAILABLE'} in {time.time() - t:.1f}s", flush=True)
+
+
 def candidates() -> None:
+    probe()
     queries = json.loads((HERE / "queries.json").read_text())
     picks = json.loads((HERE / "picks.json").read_text()) if (HERE / "picks.json").exists() else {}
     todo = [pid for pid in queries if pid not in picks]
@@ -99,7 +111,7 @@ def candidates() -> None:
     for pid in todo:
         seen, found = set(), []
         for q in queries[pid]:
-            for c in unsplash(q, 6) + openverse(q, 2):
+            for c in (unsplash(q, 6) if SOURCES["unsplash"] else []) + (openverse(q, 2) if SOURCES["openverse"] else []):
                 if c["key"] not in seen:
                     seen.add(c["key"])
                     found.append(c)
