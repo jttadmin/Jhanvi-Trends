@@ -9,6 +9,7 @@ import re
 import time
 from contextlib import asynccontextmanager
 from html import escape
+from pathlib import Path
 from typing import List, Optional
 
 import gridfs
@@ -45,6 +46,10 @@ FIELDS = ["name", "category", "brand", "price", "mrp", "rating", "reviewCount", 
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_IMAGE_BYTES = 3 * 1024 * 1024
 DEFAULT_ICON = "🛍️"
+# Photos for the seeded demo products. Bump PHOTO_SET after replacing the bundled photos to
+# roll them out (products with an admin-uploaded photo keep theirs).
+PHOTO_DIR = Path(__file__).resolve().parent / "photos"
+PHOTO_SET = "2026-11-v1"
 
 
 def migrate() -> None:
@@ -58,6 +63,7 @@ def migrate() -> None:
                     doc = dict(zip(FIELDS, p[1:]), active=True, updatedAt=now)
                     products.update_one({"_id": p[0]}, {"$setOnInsert": doc}, upsert=True)
                 log(logger, logging.INFO, "seeded demo catalog", products=len(PRODUCTS))
+            seed_photos()
             products.create_index([("category", ASCENDING)])
             products.create_index([("reviewCount", DESCENDING)])
             log(logger, logging.INFO, "database ready", products=products.estimated_document_count())
@@ -66,6 +72,38 @@ def migrate() -> None:
             log(logger, logging.WARNING, "database not ready, retrying", attempt=attempt, error=str(exc))
             time.sleep(min(attempt, 10))
     raise RuntimeError("database never became ready")
+
+
+def seed_photos() -> None:
+    """Give each demo product its bundled photo (app/photos/<id>.jpg) once.
+
+    Only touches a product that still has its seeded name and no photo of its own, so admin
+    edits, uploads, deletions and reused IDs are respected. The claim on PHOTO_SET makes this
+    safe when several replicas start together, and a photo the admin removes stays removed.
+    """
+    applied = 0
+    for p in PRODUCTS:
+        path = PHOTO_DIR / f"{p[0]}.jpg"
+        if not path.is_file():
+            continue
+        claimed = products.update_one(
+            {"_id": p[0], "name": p[1], "seedPhoto": {"$ne": PHOTO_SET}, "$or": [
+                # never had a photo
+                {"imageVersion": {"$exists": False}, "seedPhoto": {"$exists": False}},
+                # still shows an older bundled photo (not one the admin uploaded)
+                {"$expr": {"$eq": ["$imageVersion", "$seedImageVersion"]}, "seedImageVersion": {"$exists": True}},
+            ]},
+            {"$set": {"seedPhoto": PHOTO_SET}},
+        )
+        if claimed.modified_count != 1:
+            continue
+        version = int(time.time() * 1000) + p[0]
+        _delete_photo_files(p[0])
+        images.put(path.read_bytes(), filename=str(p[0]), contentType="image/jpeg")
+        products.update_one({"_id": p[0]}, {"$set": {"imageVersion": version, "seedImageVersion": version}})
+        applied += 1
+    if applied:
+        log(logger, logging.INFO, "applied bundled product photos", products=applied, set=PHOTO_SET)
 
 
 @asynccontextmanager
