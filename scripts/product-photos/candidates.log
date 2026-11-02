@@ -1,0 +1,30 @@
+  ! https://unsplash.com/s/photos/coffee-mug -> HTTP Error 401: Unauthorized
+  ! https://unsplash.com/s/photos/coffee-mug -> HTTP Error 401: Unauthorized
+probe unsplash: UNAVAILABLE in 3.1s
+  ! https://api.openverse.org/v1/images/?q=coffee+mug&license=cc0%2Cpdm&page_size=1&mature=fal -> The read operation timed out
+  ! https://api.openverse.org/v1/images/?q=coffee+mug&license=cc0%2Cpdm&page_size=1&mature=fal -> The read operation timed out
+probe openverse: UNAVAILABLE in 92.2s
+product 1: 0 candidates
+product 2: 0 candidates
+product 3: 0 candidates
+product 4: 0 candidates
+product 5: 0 candidates
+product 6: 0 candidates
+product 7: 0 candidates
+product 8: 0 candidates
+product 9: 0 candidates
+product 10: 0 candidates
+product 11: 0 candidates
+product 12: 0 candidates
+product 13: 0 candidates
+product 14: 0 candidates
+product 15: 0 candidates
+product 16: 0 candidates
+product 17: 0 candidates
+product 18: 0 candidates
+product 19: 0 candidates
+product 20: 0 candidates
+product 21: 0 candidates
+product 22: 0 candidates
+product 23: 0 candidates
+product 24: 0 candidates
