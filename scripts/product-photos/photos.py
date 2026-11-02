@@ -134,7 +134,10 @@ def candidates() -> None:
                     found.append(c)
         allc[pid] = found[:12]
         print(f"product {pid}: {len(allc[pid])} candidates", flush=True)
-    (CAND / "candidates.json").write_text(json.dumps(allc, indent=1))
+    # keep earlier candidates so picks made from older contact sheets still resolve
+    prev = json.loads((CAND / "candidates.json").read_text()) if (CAND / "candidates.json").exists() else {}
+    prev.update(allc)
+    (CAND / "candidates.json").write_text(json.dumps(prev, indent=1))
 
     font = ImageFont.load_default(size=22)
     big = ImageFont.load_default(size=30)
