@@ -9,7 +9,8 @@ Runs in GitHub Actions (see .github/workflows/product-photos.yml), not in the cl
   finalize    Download every photo in picks.json, crop it to a 900x900 square and write it to
               services/catalog-service/app/photos/<id>.jpg, plus CREDITS.md.
 
-picks.json:  {"1": {"pick": 3 (sheet index) or "u:photo-...", "y": 0.5, "x": 0.5, "zoom": 1.0}, ...}
+picks.json:  {"1": {"pick": 3 (sheet index) or "u:photo-...", "y": 0.5, "x": 0.5, "zoom": 1.0,
+                    "blur": [[x0, y0, x1, y1]]}, ...}
              pick is a candidate key from candidates/candidates.json. x/y (0..1) move the
              square crop's centre; zoom > 1 crops tighter.
 """
@@ -22,7 +23,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -110,6 +111,39 @@ def from_seeds(seeds: list[dict]) -> list[dict]:
     return out
 
 
+def hide_logo(img: Image.Image, box: list[int]) -> None:
+    """Paint a small logo out with the surface around it (sides and bottom, which the logo sits on),
+    add matching grain so the patch keeps the material's texture, then soften the edges."""
+    import random
+    x0, y0, x1, y1 = box[:4]
+    vertical = len(box) > 4 and box[4] == "v"
+    ring = [img.getpixel((x, y1 + 2)) for x in range(x0 - 3, x1 + 3)] + \
+           [img.getpixel((x, y)) for y in range(y0, y1 + 3) for x in (x0 - 3, x1 + 2)]
+    ring.sort(key=sum)
+    base = ring[len(ring) // 2]
+    lum = [sum(c) / 3 for c in ring[len(ring) // 4: 3 * len(ring) // 4]]
+    grain = (sum((v - sum(lum) / len(lum)) ** 2 for v in lum) / len(lum)) ** 0.5
+    rnd = random.Random(f"{box}")
+
+    def avg(x: int, ys: range) -> tuple:
+        px = [img.getpixel((x, y)) for y in ys]
+        return tuple(sum(c[i] for c in px) / len(px) for i in range(3))
+
+    for x in range(x0, x1):
+        if vertical:  # follow the surface's shading: blend the rows just above and below, per column
+            top, bottom = avg(x, range(y0 - 5, y0 - 2)), avg(x, range(y1 + 2, y1 + 5))
+        for y in range(y0, y1):
+            if vertical:
+                t = (y - y0) / max(1, y1 - y0 - 1)
+                c0 = tuple(a + (b - a) * t for a, b in zip(top, bottom))
+            else:
+                c0 = base
+            n = rnd.gauss(0, grain)
+            img.putpixel((x, y), tuple(max(0, min(255, int(c + n))) for c in c0))
+    pad = (x0 - 4, y0 - 4, x1 + 4, y1 + 4)
+    img.paste(img.crop(pad).filter(ImageFilter.GaussianBlur(1.5)), pad[:2])
+
+
 def candidates() -> None:
     seeds = json.loads((HERE / "seeds.json").read_text()) if (HERE / "seeds.json").exists() else {}
     if not seeds:
@@ -185,6 +219,8 @@ def finalize() -> None:
             sys.exit(f"product {pid}: {p['pick']} is not in candidates.json")
         src = c["raw"] + "?w=1800&fm=jpg&q=85" if c["key"][0] == "u" else c["raw"]
         img = square(Image.open(io.BytesIO(get(src, accept_json=False))), p.get("x", .5), p.get("y", .5), p.get("zoom", 1.0))
+        for box in p.get("blur", []):  # hide small third-party logos: [x0, y0, x1, y1(, "v")] on the 900px square
+            hide_logo(img, box)
         img.save(OUT / f"{pid}.jpg", quality=82, optimize=True, progressive=True)
         picked[pid] = c
         print(f"product {pid}: {c['key']} -> {(OUT / f'{pid}.jpg').stat().st_size // 1024} KB", flush=True)
