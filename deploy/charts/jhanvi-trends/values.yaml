@@ -31,7 +31,7 @@ monitoring:
 # With hpa.enabled the HPA owns the pod count and replicas is ignored; set hpa.enabled: false to pin replicas.
 services:
   frontend:
-    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
+    image: {tag: f3570491dd62613f56e398c02bb9c004cedd12bd}
     runAsUser: 1000 # numeric UID of the node user
     replicas: 2
     port: 8080
@@ -49,7 +49,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8080
       ORDER_SERVICE_URL: http://order-service:8080
   user-service:
-    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
+    image: {tag: f3570491dd62613f56e398c02bb9c004cedd12bd}
     runAsUser: 1000 # numeric UID of the node user
     replicas: 1
     port: 8080
@@ -99,7 +99,7 @@ services:
     hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpu: 70, memory: 70}
     database: inventory
   order-service:
-    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
+    image: {tag: f3570491dd62613f56e398c02bb9c004cedd12bd}
     replicas: 1
     port: 8080
     metricsPath: /actuator/prometheus
@@ -120,7 +120,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8080
       PAYMENT_SERVICE_URL: http://payment-service:8080
   payment-service:
-    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
+    image: {tag: f3570491dd62613f56e398c02bb9c004cedd12bd}
     runAsUser: 1000 # numeric UID of the node user
     replicas: 1
     port: 8080
