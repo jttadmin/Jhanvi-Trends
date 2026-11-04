@@ -1,5 +1,5 @@
 # Stages: deps -> test (docker build --target test .) | deps -> build -> runtime (default target)
-FROM maven:3.9-eclipse-temurin-21 AS deps
+FROM maven:3.9-eclipse-temurin-26 AS deps
 WORKDIR /src
 COPY pom.xml .
 RUN mvn -B -q dependency:go-offline
@@ -13,7 +13,7 @@ FROM deps AS build
 COPY src ./src
 RUN mvn -B -q package -DskipTests
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 ARG OTEL_AGENT_VERSION=2.32.0
 ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_AGENT_VERSION}/opentelemetry-javaagent.jar /otel/opentelemetry-javaagent.jar
 RUN chmod 444 /otel/opentelemetry-javaagent.jar && useradd -u 10001 -m app
