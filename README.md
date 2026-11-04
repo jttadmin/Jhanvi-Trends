@@ -25,7 +25,7 @@ flowchart LR
 | catalog-service | Python 3.13 / FastAPI | **MongoDB** `catalog` | Products, search, categories, generated product images |
 | cart-service | Go 1.27 | **Valkey** (Redis-compatible) | Per-user carts (hash per user, 30-day TTL) |
 | inventory-service | Go | PostgreSQL `inventory` | Stock levels, all-or-nothing reservations |
-| order-service | Java 21 / Spring Boot 3.5 | PostgreSQL `orders` | Checkout saga: reserve → pay → save → commit, publishes to **Kafka** |
+| order-service | Java 21 / Spring Boot 4.1 | PostgreSQL `orders` | Checkout saga: reserve → pay → save → commit, publishes to **Kafka** |
 | payment-service | Node.js | – | Mock gateway with runtime chaos knobs (decline rate, latency) |
 | notification-service | Python | – | Kafka consumer for `order-events`, "sends" emails |
 | loadgen | Python / Locust | – | Synthetic shoppers so dashboards always have data |

@@ -22,7 +22,8 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      # Jackson 3 serializer (JsonSerializer is the deprecated Jackson 2 one; Spring Boot 4 ships Jackson 3).
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
       acks: all
       properties:
         spring.json.add.type.headers: false
