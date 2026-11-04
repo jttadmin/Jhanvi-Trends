@@ -14,6 +14,9 @@ DNS_ZONE="${DNS_ZONE:-bhumaji.com}"                   # only subdomains of this 
 DNS_TTL="${DNS_TTL:-600}"
 GODADDY_ENV="${GODADDY_ENV:-$HOME/.config/gce-cluster/godaddy.env}"
 GODADDY_API="https://api.godaddy.com/v3/domains"
+# SSH goes through Google's IAP tunnel (HTTPS 443): works where outgoing port 22 is blocked and
+# needs no external IP. Requires the firewall rule from scripts/access-setup.sh. SSH_OPTS="" for direct SSH.
+SSH_OPTS="${SSH_OPTS---tunnel-through-iap}"
 
 g() { gcloud --project "$PROJECT" "$@"; }
 say() { printf '\033[1;36m==> %s\033[0m\n' "$*"; }
@@ -135,7 +138,8 @@ cmd_dns_setup() {
 
 show_nodes() {
   say "Kubernetes nodes (via $MASTER)"
-  g compute ssh "$MASTER" --zone "$ZONE" --quiet --command \
+  # shellcheck disable=SC2086
+  g compute ssh "$MASTER" --zone "$ZONE" $SSH_OPTS --quiet --command \
     "kubectl get nodes; echo; kubectl get pods -A --no-headers | awk '\$4!=\"Running\" && \$4!=\"Completed\"{n++; print \"  not running: \"\$1\"/\"\$2\" \"\$4} END{if(!n) print \"  all pods Running\"}'" \
     2>/dev/null || bad "could not reach $MASTER over SSH (is it running?)"
 }
@@ -143,7 +147,8 @@ wait_for_nodes() {
   say "Waiting for Kubernetes nodes to become Ready (up to 5 min)"
   local _
   for _ in $(seq 1 30); do
-    if g compute ssh "$MASTER" --zone "$ZONE" --quiet --command \
+    # shellcheck disable=SC2086
+    if g compute ssh "$MASTER" --zone "$ZONE" $SSH_OPTS --quiet --command \
         "kubectl get nodes --no-headers 2>/dev/null | awk '\$2!=\"Ready\"{n++} END{exit (NR==0 || n>0)}'" 2>/dev/null; then
       ok "all nodes Ready"; return 0
     fi
