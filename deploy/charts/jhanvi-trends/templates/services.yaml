@@ -6,7 +6,7 @@ kind: Deployment
 metadata:
   name: {{ $name }}
   labels:
-    {{- include "jhanvi-trends.labels" $root | nindent 4 }}
+    {{- include "jhanvi-trends.commonLabels" $root | nindent 4 }}
     {{- include "jhanvi-trends.selector" $name | nindent 4 }}
 spec:
   {{- if not (and $svc.hpa $svc.hpa.enabled) }}
@@ -111,7 +111,7 @@ kind: Service
 metadata:
   name: {{ $name }}
   labels:
-    {{- include "jhanvi-trends.labels" $root | nindent 4 }}
+    {{- include "jhanvi-trends.commonLabels" $root | nindent 4 }}
     {{- include "jhanvi-trends.selector" $name | nindent 4 }}
 spec:
   selector:

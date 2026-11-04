@@ -35,7 +35,7 @@ kind: Deployment
 metadata:
   name: loadgen
   labels:
-    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.commonLabels" . | nindent 4 }}
     {{- include "jhanvi-trends.selector" "loadgen" | nindent 4 }}
 spec:
   replicas: 1
