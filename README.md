@@ -50,7 +50,7 @@ services/<name>/            source + Dockerfile for each service
 deploy/charts/jhanvi-trends/    Helm chart: services, PostgreSQL, MongoDB, Redis, Kafka, ingress, rules, dashboard
 deploy/platform/            values for kube-prometheus-stack, Loki, Tempo, OTel Collector, Traefik, metrics-server
 deploy/argocd/              AppProject, app-of-apps root, one Application per component
-.github/workflows/ci.yaml   build → Trivy scan → push to Docker Hub → bump image tags in Git
+.github/workflows/ci.yaml   test stage → build → Trivy scan → push to Docker Hub → bump image tags in Git
 scripts/                    configure.sh, bootstrap.sh, gen-dashboard.py
 ```
 
@@ -76,7 +76,8 @@ git add -A && git commit -m "Configure for my cluster" && git push
    *Read, Write, Delete* access.
 2. GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**:
    `DOCKERHUB_USERNAME` (your Docker Hub username) and `DOCKERHUB_TOKEN` (the token).
-   To push to a Docker Hub organization instead, also add a repository **variable** `DOCKERHUB_NAMESPACE`.
+   CI pushes to the registry/namespace set in `global.imageRegistry` in `deploy/charts/jhanvi-trends/values.yaml`
+   (`docker.io/jhanviadmin`); change it there to push to a Docker Hub organization.
 3. GitHub repo → **Settings → Actions → General → Workflow permissions → Read and write** (CI commits image tags).
 4. **Actions → ci → Run workflow**. It builds 9 images to `docker.io/<namespace>/jhanvi-trends-*` and commits the
    new tags into `deploy/charts/jhanvi-trends/values.yaml`. New Docker Hub repositories are public by default;
@@ -202,6 +203,13 @@ sum(kafka_consumergroup_lag{consumergroup="notification-service"})
   conflict in your market.
 - **CI guards**: pull requests run GitHub's dependency review, which fails if a new dependency is GPL/AGPL/SSPL, and
   every image build prints a Trivy license report.
+- **Tests**: every service's Dockerfile has a `test` stage (format/lint, compile, unit tests). CI runs it before
+  building the image; run it locally with `docker build --target test services/<service>`. Add tests as
+  `*_test.go` (Go), `src/test/java` (order-service), a `"test"` script in `package.json` (Node) or a `tests/`
+  folder with pytest (Python) and they run automatically.
+- **Security scan**: Trivy results appear under the repo's **Security → Code scanning** tab. A CRITICAL
+  vulnerability that already has a fix fails the build; set the repository variable `TRIVY_BLOCK_CRITICAL` to
+  `false` to make it report-only.
 
 ## Local development
 

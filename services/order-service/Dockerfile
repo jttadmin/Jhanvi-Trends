@@ -1,7 +1,15 @@
-FROM maven:3.9-eclipse-temurin-21 AS build
+# Stages: deps -> test (docker build --target test .) | deps -> build -> runtime (default target)
+FROM maven:3.9-eclipse-temurin-21 AS deps
 WORKDIR /src
 COPY pom.xml .
 RUN mvn -B -q dependency:go-offline
+
+# Compiles and runs the unit tests (src/test/java). CI runs this before building the image.
+FROM deps AS test
+COPY src ./src
+RUN mvn -B -ntp verify
+
+FROM deps AS build
 COPY src ./src
 RUN mvn -B -q package -DskipTests
 

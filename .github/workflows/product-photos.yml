@@ -15,11 +15,12 @@ concurrency:
 jobs:
   photos:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.13"
       - run: pip install pillow==12.0.0
@@ -39,5 +40,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A scripts/product-photos
           if [ -d services/catalog-service/app/photos ]; then git add -A services/catalog-service/app/photos; fi
-          git diff --cached --quiet || git commit -m "product-photos: workflow results"
-          git push
+          git diff --cached --quiet && { echo "no changes"; exit 0; }
+          git commit -m "product-photos: workflow results"
+          # The branch may have moved while the job ran (e.g. a new picks.json push).
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
