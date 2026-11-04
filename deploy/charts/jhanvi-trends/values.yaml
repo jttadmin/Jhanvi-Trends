@@ -31,7 +31,7 @@ monitoring:
 # With hpa.enabled the HPA owns the pod count and replicas is ignored; set hpa.enabled: false to pin replicas.
 services:
   frontend:
-    image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
+    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
     runAsUser: 1000 # numeric UID of the node user
     replicas: 2
     port: 8080
@@ -49,7 +49,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8080
       ORDER_SERVICE_URL: http://order-service:8080
   user-service:
-    image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
+    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
     runAsUser: 1000 # numeric UID of the node user
     replicas: 1
     port: 8080
@@ -65,7 +65,7 @@ services:
       # Accounts with these emails get the admin panel (comma-separated). Log out and in again after changing.
       ADMIN_EMAILS: srinivas.bdn@gmail.com
   catalog-service:
-    image: {tag: 25bd7867aea41f0e479a8f33b500c501e855c7b8}
+    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
     replicas: 1
     port: 8080
     metricsPath: /metrics
@@ -76,7 +76,7 @@ services:
     hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpu: 70, memory: 70}
     mongodb: catalog # MongoDB database name
   cart-service:
-    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
+    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
     replicas: 1
     port: 8080
     metricsPath: /metrics
@@ -88,7 +88,7 @@ services:
     env:
       REDIS_ADDR: redis:6379
   inventory-service:
-    image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
+    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
     replicas: 1
     port: 8080
     metricsPath: /metrics
@@ -99,7 +99,7 @@ services:
     hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpu: 70, memory: 70}
     database: inventory
   order-service:
-    image: {tag: 56a10013b31a3240dbfc23bb66903a12db0608bf}
+    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
     replicas: 1
     port: 8080
     metricsPath: /actuator/prometheus
@@ -120,7 +120,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8080
       PAYMENT_SERVICE_URL: http://payment-service:8080
   payment-service:
-    image: {tag: 101471cff6d07b11ab2da196c1929b1175789880}
+    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
     runAsUser: 1000 # numeric UID of the node user
     replicas: 1
     port: 8080
@@ -134,7 +134,7 @@ services:
       PAYMENT_FAILURE_RATE: "0.05"
       PAYMENT_LATENCY_MS: "150"
   notification-service:
-    image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
+    image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
     replicas: 1
     port: 8080
     metricsPath: /metrics
@@ -148,7 +148,7 @@ services:
 # Synthetic traffic so dashboards are never empty. Set enabled=false in production.
 loadgen:
   enabled: true
-  image: {tag: 7bec1e9f3a60e71ad5f161b32a302f0d64798a3a}
+  image: {tag: e4b55898c1b9ad7515568b4a6164e565aa878e59}
   users: 8
   spawnRate: 1
   resources:
