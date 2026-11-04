@@ -1,5 +1,11 @@
 {{- define "jhanvi-trends.labels" -}}
 app.kubernetes.io/part-of: jhanvi-trends
+{{ include "jhanvi-trends.commonLabels" . }}
+{{- end -}}
+
+{{/* labels without part-of: use next to "jhanvi-trends.selector", which already sets it
+     (a repeated key is invalid YAML for strict parsers such as kubeconform). */}}
+{{- define "jhanvi-trends.commonLabels" -}}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
 {{- end -}}

@@ -17,7 +17,7 @@ kind: Service
 metadata:
   name: postgres
   labels:
-    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.commonLabels" . | nindent 4 }}
     {{- include "jhanvi-trends.selector" "postgres" | nindent 4 }}
 spec:
   selector:
@@ -31,7 +31,7 @@ kind: StatefulSet
 metadata:
   name: postgres
   labels:
-    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.commonLabels" . | nindent 4 }}
     {{- include "jhanvi-trends.selector" "postgres" | nindent 4 }}
 spec:
   serviceName: postgres

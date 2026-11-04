@@ -5,7 +5,7 @@ kind: Service
 metadata:
   name: kafka
   labels:
-    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.commonLabels" . | nindent 4 }}
     {{- include "jhanvi-trends.selector" "kafka" | nindent 4 }}
 spec:
   selector:
@@ -18,7 +18,7 @@ kind: StatefulSet
 metadata:
   name: kafka
   labels:
-    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.commonLabels" . | nindent 4 }}
     {{- include "jhanvi-trends.selector" "kafka" | nindent 4 }}
 spec:
   serviceName: kafka
@@ -89,7 +89,7 @@ kind: Deployment
 metadata:
   name: kafka-exporter
   labels:
-    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.commonLabels" . | nindent 4 }}
     {{- include "jhanvi-trends.selector" "kafka-exporter" | nindent 4 }}
 spec:
   replicas: 1
@@ -117,7 +117,7 @@ kind: Service
 metadata:
   name: kafka-exporter
   labels:
-    {{- include "jhanvi-trends.labels" . | nindent 4 }}
+    {{- include "jhanvi-trends.commonLabels" . | nindent 4 }}
     {{- include "jhanvi-trends.selector" "kafka-exporter" | nindent 4 }}
 spec:
   selector:

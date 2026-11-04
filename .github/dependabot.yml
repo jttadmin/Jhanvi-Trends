@@ -1,0 +1,13 @@
+# Keeps the SHA-pinned GitHub Actions and the Dockerfile base images up to date (weekly PRs).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: weekly}
+    groups:
+      actions: {patterns: ["*"]}
+  - package-ecosystem: docker
+    directories: ["/services/*"]
+    schedule: {interval: weekly}
+    groups:
+      base-images: {patterns: ["*"]}
