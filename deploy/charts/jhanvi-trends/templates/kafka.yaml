@@ -33,6 +33,7 @@ spec:
     spec:
       # Without this, Kubernetes injects KAFKA_PORT=tcp://... which the image reads as broker config.
       enableServiceLinks: false
+      {{- include "jhanvi-trends.nodeSelector" (dict "root" . "group" "datastores") | nindent 6 }}
       securityContext:
         fsGroup: 1000
       containers:
@@ -102,6 +103,7 @@ spec:
         {{- include "jhanvi-trends.selector" "kafka-exporter" | nindent 8 }}
     spec:
       enableServiceLinks: false
+      {{- include "jhanvi-trends.nodeSelector" (dict "root" . "group" "datastores") | nindent 6 }}
       containers:
         - name: kafka-exporter
           image: {{ $k.exporter.image }}

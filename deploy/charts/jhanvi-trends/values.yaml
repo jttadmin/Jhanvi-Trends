@@ -12,6 +12,8 @@ global:
   # Secret holding POSTGRES_PASSWORD, MONGODB_PASSWORD, JWT_SECRET (created by scripts/bootstrap.sh).
   secretName: jhanvi-trends-secrets
   tracesSampleRatio: "1.0"
+  # Where services send OTLP traces. Empty = node-local collector at <node IP>:4317 (kubeadm setup).
+  otlpEndpoint: ""
 ingress:
   enabled: true
   className: traefik
@@ -22,6 +24,10 @@ ingress:
   tls:
     - hosts: [shop.bhumaji.com]
       secretName: shop-tls
+# Pin workload groups to node pools, e.g. {workload: apps} / {workload: stateful} on GKE. Empty = anywhere.
+nodeSelectors:
+  services: {}   # microservices + loadgen
+  datastores: {} # postgres, mongodb, redis, kafka (+ kafka-exporter)
 monitoring:
   serviceMonitors: true
   prometheusRules: true

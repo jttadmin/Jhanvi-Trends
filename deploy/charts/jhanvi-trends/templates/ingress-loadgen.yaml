@@ -48,6 +48,7 @@ spec:
         {{- include "jhanvi-trends.selector" "loadgen" | nindent 8 }}
     spec:
       {{- include "jhanvi-trends.pullSecrets" . | nindent 6 }}
+      {{- include "jhanvi-trends.nodeSelector" (dict "root" . "group" "services") | nindent 6 }}
       securityContext:
         runAsNonRoot: true
         seccompProfile: { type: RuntimeDefault }

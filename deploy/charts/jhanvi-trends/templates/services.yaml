@@ -27,6 +27,7 @@ spec:
     spec:
       {{- include "jhanvi-trends.pullSecrets" $root | nindent 6 }}
       enableServiceLinks: false
+      {{- include "jhanvi-trends.nodeSelector" (dict "root" $root "group" "services") | nindent 6 }}
       securityContext:
         runAsNonRoot: true
         {{- with $svc.runAsUser }}

@@ -28,7 +28,8 @@ imagePullSecrets:
 {{- end }}
 {{- end -}}
 
-{{/* OpenTelemetry SDK settings shared by every service. Spans go to the
+{{/* OpenTelemetry SDK settings shared by every service. Spans go to
+     global.otlpEndpoint when set (e.g. a gateway Service on GKE), otherwise to the
      node-local OpenTelemetry Collector (DaemonSet, hostPort 4317). */}}
 {{- define "jhanvi-trends.otelEnv" -}}
 - name: HOST_IP
@@ -40,7 +41,7 @@ imagePullSecrets:
 - name: OTEL_SERVICE_NAME
   value: {{ .name | quote }}
 - name: OTEL_EXPORTER_OTLP_ENDPOINT
-  value: "http://$(HOST_IP):4317"
+  value: {{ .root.Values.global.otlpEndpoint | default "http://$(HOST_IP):4317" | quote }}
 - name: OTEL_EXPORTER_OTLP_PROTOCOL
   value: grpc
 - name: OTEL_EXPORTER_OTLP_INSECURE
@@ -60,4 +61,13 @@ imagePullSecrets:
   value: "fs,dns,net"
 - name: OTEL_NODE_RESOURCE_DETECTORS
   value: "env,host,os,process,container"
+{{- end -}}
+
+
+{{/* nodeSelector for a workload group: "services" or "datastores" (values: nodeSelectors.<group>). */}}
+{{- define "jhanvi-trends.nodeSelector" -}}
+{{- with (index (.root.Values.nodeSelectors | default dict) .group) }}
+nodeSelector:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 {{- end -}}

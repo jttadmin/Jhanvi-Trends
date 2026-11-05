@@ -46,6 +46,7 @@ spec:
       annotations:
         checksum/init: {{ $p.databases | toJson | sha256sum | trunc 12 }}
     spec:
+      {{- include "jhanvi-trends.nodeSelector" (dict "root" . "group" "datastores") | nindent 6 }}
       securityContext:
         fsGroup: 70
       containers:

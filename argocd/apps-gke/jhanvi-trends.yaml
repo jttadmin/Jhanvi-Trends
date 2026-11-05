@@ -1,0 +1,40 @@
+# Jhanvi Trends on GKE (dev). Picked up by the root app that jhanvi-trends-infra installs,
+# which syncs everything in argocd/apps-gke/.
+#
+# Platform pieces (Traefik, cert-manager, Prometheus/Grafana, Loki, Tempo, OTel) are owned by
+# the infra repo, so only the store chart is deployed from here.
+#
+# One-time, before the first sync: create the app secret (see deploy/GKE.md).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jhanvi-trends
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jhanvi-trends
+  source:
+    repoURL: https://github.com/jttadmin/jhanvi-trends.git
+    targetRevision: main
+    path: deploy/charts/jhanvi-trends
+    helm:
+      releaseName: jhanvi-trends
+      valueFiles:
+        - values.yaml
+        - values-gke.yaml
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 5m }
+    syncOptions:
+      - CreateNamespace=true
+  # HPAs own the replica count of the services, so Argo CD must not reset it.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers: [/spec/replicas]

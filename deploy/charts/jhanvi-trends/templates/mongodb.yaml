@@ -33,6 +33,7 @@ spec:
         {{- include "jhanvi-trends.selector" "mongodb" | nindent 8 }}
     spec:
       enableServiceLinks: false
+      {{- include "jhanvi-trends.nodeSelector" (dict "root" . "group" "datastores") | nindent 6 }}
       securityContext:
         fsGroup: 999
       containers:

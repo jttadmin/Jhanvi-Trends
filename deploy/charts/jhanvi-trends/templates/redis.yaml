@@ -32,6 +32,7 @@ spec:
       labels:
         {{- include "jhanvi-trends.selector" "redis" | nindent 8 }}
     spec:
+      {{- include "jhanvi-trends.nodeSelector" (dict "root" . "group" "datastores") | nindent 6 }}
       securityContext:
         fsGroup: 999
       containers:

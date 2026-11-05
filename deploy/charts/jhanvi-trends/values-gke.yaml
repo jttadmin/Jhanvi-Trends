@@ -1,0 +1,28 @@
+# Overrides for the GKE clusters built by jttadmin/jhanvi-trends-infra.
+# Used together with values.yaml (CI keeps bumping image tags there, so every cluster gets them).
+
+global:
+  environment: gke-dev
+  # OTel gateway installed by the infra repo; it fans out to Tempo / Prometheus / Loki.
+  otlpEndpoint: http://otel-gateway.observability.svc:4317
+
+ingress:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod   # ClusterIssuer name created by the infra repo
+
+# GKE node pools (labels set by Terraform)
+nodeSelectors:
+  services:
+    workload: apps
+  datastores:
+    workload: stateful
+
+# GCE persistent disks (pd-balanced). Online resize supported.
+postgres:
+  storageClassName: standard-rwo
+mongodb:
+  storageClassName: standard-rwo
+redis:
+  storageClassName: standard-rwo
+kafka:
+  storageClassName: standard-rwo
